@@ -194,10 +194,24 @@
 
 /* ── Card base ──────────────────────────────────────── */
 .recipe-card {
+  position: relative;
   break-inside: avoid; display: block; width: 100%;
   margin-bottom: var(--space-4); border-radius: var(--radius-lg);
   cursor: pointer; background: #1A1918; outline: none;
 }
+.recipe-card-link { display: block; color: inherit; text-decoration: none; }
+
+/* kebab menu trigger, overlaid on the card corner */
+.recipe-card-menu-btn {
+  position: absolute; top: var(--space-2); right: var(--space-2); z-index: 5;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(26,25,24,0.6); backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.15); color: #fff;
+  font-size: var(--text-sm); line-height: 1; cursor: pointer; padding: 0;
+  transition: background var(--transition);
+}
+.recipe-card-menu-btn:hover { background: rgba(26,25,24,0.85); }
 
 /* ── Image card ─────────────────────────────────────── */
 .recipe-card-img {
