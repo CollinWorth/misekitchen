@@ -1,17 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiFetch, imgUrl } from '../api';
+import { apiFetch } from '../api';
+import RecipeCard from '../components/RecipeCard';
 import './css/UserProfilePage.css';
 import './css/Recipes.css';
-
-const CUISINE_PASTELS = {
-  italian:'#F5EDE8', mexican:'#E9F2E9', japanese:'#F2EDF4',
-  chinese:'#F5EDEC', indian:'#F5F0E8', american:'#EBF0F5',
-  french:'#EEF0F8', thai:'#F3F2E7', mediterranean:'#E8F2EF',
-  greek:'#EDF0F8', korean:'#F4EDF2',
-};
-const cuisinePastel = c => CUISINE_PASTELS[(c||'').toLowerCase()] || '#F2F0EB';
-const totalTime = r => { const t = (r.prep_time||0)+(r.cook_time||0); return t > 0 ? `${t}m` : null; };
 
 export default function UserProfilePage({ user: currentUser }) {
   const { id }        = useParams();
@@ -126,25 +118,11 @@ export default function UserProfilePage({ user: currentUser }) {
       ) : (
         <div className="recipe-grid">
           {recipes.map((recipe, idx) => (
-            <div
+            <RecipeCard
               key={recipe._id || recipe.id || idx}
-              className="recipe-card"
-              onClick={() => navigate(`/recipes/${recipe._id || recipe.id}`)}
-            >
-              <div className="recipe-card-img">
-                {recipe.image_url
-                  ? <img src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} />
-                  : <div className="recipe-placeholder" style={{background: cuisinePastel(recipe.cuisine)}} />
-                }
-                <div className="recipe-card-overlay">
-                  <div className="recipe-card-tags">
-                    {recipe.cuisine && <span className="recipe-overlay-badge">{recipe.cuisine}</span>}
-                    {totalTime(recipe) && <span className="recipe-overlay-time">{totalTime(recipe)}</span>}
-                  </div>
-                  <div className="recipe-card-title">{recipe.recipe_name}</div>
-                </div>
-              </div>
-            </div>
+              recipe={recipe}
+              showRating={false}
+            />
           ))}
         </div>
       )}

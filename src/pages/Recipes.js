@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { apiFetch, imgUrl } from '../api';
-import StarRating from '../components/StarRating';
+import { useNavigate, Link } from 'react-router-dom';
+import { apiFetch } from '../api';
+import RecipeCard from '../components/RecipeCard';
 import FilterDropdown from '../components/FilterDropdown';
 import './css/Recipes.css';
 
@@ -13,18 +13,6 @@ const SORT_OPTIONS = [
   { value: 'quickest',  label: 'Quickest' },
   { value: 'fewest',    label: 'Fewest ingredients' },
 ];
-
-const CUISINE_BG = {
-  italian:'#F5EDE8', mexican:'#E9F2E9', japanese:'#F2EDF4', chinese:'#F5EDEC',
-  indian:'#F5F0E8', american:'#EBF0F5', french:'#EEF0F8', thai:'#F3F2E7',
-  mediterranean:'#E8F2EF', greek:'#EDF0F8', korean:'#F4EDF2',
-};
-const cuisineBg = c => (c && CUISINE_BG[c.toLowerCase()]) || '#F2F0EB';
-
-function totalTime(recipe) {
-  const t = (recipe.prep_time || 0) + (recipe.cook_time || 0);
-  return t > 0 ? `${t}m` : null;
-}
 
 const IMPORT_METHODS = [
   { icon: '🔗', label: 'From URL',    desc: 'Any recipe website',   path: '/recipes/add' },
@@ -45,17 +33,14 @@ export default function Recipes({ user }) {
   const [cuisineOpen, setCuisineOpen]   = useState(false);
   const [tagsOpen, setTagsOpen]         = useState(false);
   const [timeOpen, setTimeOpen]         = useState(false);
-  const [failedImages, setFailedImages] = useState(new Set());
   const navigate  = useNavigate();
-  const location  = useLocation();
   const sortRef    = useRef(null);
   const cuisineRef = useRef(null);
   const tagsRef    = useRef(null);
   const timeRef    = useRef(null);
 
-  const goToRecipe = (id) => {
+  const saveScrollPosition = () => {
     sessionStorage.setItem('recipes_scrollY', String(window.scrollY));
-    navigate(`/recipes/${id}`, { state: { from: location.pathname } });
   };
 
   useEffect(() => {
@@ -330,44 +315,15 @@ export default function Recipes({ user }) {
       ) : (
         <>
           <div className="recipe-grid">
-            {filtered.map((recipe, idx) => {
-              const rid = recipe._id || recipe.id || idx;
-              const hasImage = recipe.image_url && !failedImages.has(rid);
-              return (
-                <div key={rid} className={`recipe-card${hasImage ? '' : ' recipe-card--text'}`}
-                  onClick={() => goToRecipe(recipe._id || recipe.id)}>
-                  {hasImage ? (
-                    <div className="recipe-card-img">
-                      <img src={imgUrl(recipe.image_url)} alt={recipe.recipe_name}
-                        onError={() => setFailedImages(prev => new Set(prev).add(rid))} />
-                      <div className="recipe-card-overlay">
-                        <div className="recipe-card-tags">
-                          {recipe.cuisine && <span className="recipe-overlay-badge">{recipe.cuisine}</span>}
-                          {totalTime(recipe) && <span className="recipe-overlay-time">{totalTime(recipe)}</span>}
-                        </div>
-                        <div className="recipe-card-title">{recipe.recipe_name}</div>
-                        {recipe.servings && <div className="recipe-card-sub">Serves {recipe.servings}</div>}
-                        <div className="recipe-card-rating">
-                          <StarRating rating={recipe.avg_rating || 0} showScore={recipe.avg_rating > 0} size="sm" />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="recipe-card-text" style={{ background: cuisineBg(recipe.cuisine) }}>
-                      {recipe.category && <span className="recipe-card-text-category">{recipe.category}</span>}
-                      <div className="recipe-card-title">{recipe.recipe_name}</div>
-                      <div className="recipe-card-sub">
-                        {[recipe.cuisine, totalTime(recipe), recipe.servings && `Serves ${recipe.servings}`]
-                          .filter(Boolean).join(' · ')}
-                      </div>
-                      <div className="recipe-card-rating">
-                        <StarRating rating={recipe.avg_rating || 0} showScore={recipe.avg_rating > 0} size="sm" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {filtered.map((recipe, idx) => (
+              <RecipeCard
+                key={recipe._id || recipe.id || idx}
+                recipe={recipe}
+                onClick={saveScrollPosition}
+                showServings
+                textFallback
+              />
+            ))}
           </div>
         </>
       )}
