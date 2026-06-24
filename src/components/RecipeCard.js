@@ -202,7 +202,12 @@ export default function RecipeCard({
                     const inPantry = pantryMatches(ing.name, pantry);
                     return (
                       <label key={i} className={`recipe-card-grocery-row${checked ? ' recipe-card-grocery-row--selected' : ''}`}>
-                        <input type="checkbox" checked={checked} onChange={() => setGroceryChecked(s => ({ ...s, [i]: !checked }))} />
+                        <input
+                          type="checkbox"
+                          className="recipe-card-grocery-check"
+                          checked={checked}
+                          onChange={() => setGroceryChecked(s => ({ ...s, [i]: !checked }))}
+                        />
                         <span className="recipe-card-grocery-name">{ing.name}</span>
                         {inPantry ? (
                           <span className="recipe-card-grocery-pantry-badge">in pantry</span>
