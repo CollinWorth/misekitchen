@@ -238,6 +238,8 @@
   border: 1.5px solid var(--border);
   background: var(--bg); cursor: pointer;
   transition: all var(--transition);
+  /* override global `label` styling (uppercase form-label look doesn't belong on a list row) */
+  text-transform: none; letter-spacing: normal; font-weight: normal; margin-bottom: 0;
 }
 .mp-ing-row--selected { background: var(--surface); border-color: var(--accent); }
 .mp-ing-name { flex: 1; font-size: var(--text-sm); font-weight: 500; color: var(--text-primary); }
