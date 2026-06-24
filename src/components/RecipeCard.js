@@ -4,6 +4,7 @@ import { apiFetch, getStoredUser, imgUrl } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import StarRating from './StarRating';
 import FilterDropdown from './FilterDropdown';
+import MiniCalendar from './MiniCalendar';
 
 const CUISINE_PASTELS = {
   italian: '#F5EDE8', mexican: '#E9F2E9', japanese: '#F2EDF4',
@@ -16,6 +17,17 @@ const totalTime = r => {
   const t = (r.prep_time || 0) + (r.cook_time || 0);
   return t > 0 ? `${t}m` : null;
 };
+const DAY_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function dayLabel(date) {
+  const diff = Math.round((startOfDay(date) - startOfDay(new Date())) / 86400000);
+  if (diff === 0) return 'today';
+  if (diff === 1) return 'tomorrow';
+  if (diff > 1 && diff < 7) return DAY_FULL[date.getDay()];
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
 
 export default function RecipeCard({
   recipe,
@@ -29,26 +41,28 @@ export default function RecipeCard({
   const toast = useToast();
   const [imgFailed, setImgFailed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [plannerStep, setPlannerStep] = useState('menu'); // 'menu' | 'pick'
   const [busy, setBusy] = useState(false);
   const menuBtnRef = useRef(null);
   const hasImage = !!recipe.image_url && !imgFailed;
   const recipeId = recipe._id || recipe.id;
   const user = getStoredUser();
 
-  const addToPlanner = async e => {
-    e.preventDefault(); e.stopPropagation();
+  const closeMenu = () => { setMenuOpen(false); setPlannerStep('menu'); };
+
+  const addToPlannerForDate = async date => {
     const uid = user.id || user._id;
-    const today = new Date().toISOString().split('T')[0];
+    const dateStr = date.toISOString().split('T')[0];
     setBusy(true);
     try {
-      const r = await apiFetch(`/mealPlans/Create/${today}/${uid}/${recipeId}`, { method: 'POST', body: JSON.stringify({}) });
+      const r = await apiFetch(`/mealPlans/Create/${dateStr}/${uid}/${recipeId}`, { method: 'POST', body: JSON.stringify({}) });
       if (!r.ok) throw new Error();
-      toast.success('Added to today’s plan');
+      toast.success(`Added to ${dayLabel(date)}’s plan`);
     } catch {
       toast.error('Could not add to planner.');
     } finally {
       setBusy(false);
-      setMenuOpen(false);
+      closeMenu();
     }
   };
 
@@ -68,9 +82,12 @@ export default function RecipeCard({
       toast.error('Could not add to grocery list.');
     } finally {
       setBusy(false);
-      setMenuOpen(false);
+      closeMenu();
     }
   };
+
+  const today = startOfDay(new Date());
+  const tomorrow = addDays(today, 1);
 
   const menu = user && (
     <>
@@ -79,13 +96,36 @@ export default function RecipeCard({
         type="button"
         className="recipe-card-menu-btn"
         aria-label="Recipe actions"
-        onClick={e => { e.preventDefault(); e.stopPropagation(); setMenuOpen(o => !o); }}
+        onClick={e => {
+          e.preventDefault(); e.stopPropagation();
+          setPlannerStep('menu');
+          setMenuOpen(o => !o);
+        }}
       >
         ⋮
       </button>
-      <FilterDropdown open={menuOpen} anchorRef={menuBtnRef} onClose={() => setMenuOpen(false)} className="recipes-dropdown">
-        <button className="recipes-dropdown-item" disabled={busy} onClick={addToPlanner}>📅 Add to planner</button>
-        <button className="recipes-dropdown-item" disabled={busy} onClick={addToGroceryList}>🛒 Add to grocery list</button>
+      <FilterDropdown open={menuOpen} anchorRef={menuBtnRef} onClose={closeMenu} className="recipes-dropdown">
+        {plannerStep === 'menu' ? (
+          <>
+            <button
+              className="recipes-dropdown-item"
+              disabled={busy}
+              onClick={e => { e.preventDefault(); e.stopPropagation(); setPlannerStep('pick'); }}
+            >
+              📅 Add to planner
+            </button>
+            <button className="recipes-dropdown-item" disabled={busy} onClick={addToGroceryList}>🛒 Add to grocery list</button>
+          </>
+        ) : (
+          <div className="recipe-card-planner-pick" onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+            <button type="button" className="recipe-card-pick-back" disabled={busy} onClick={() => setPlannerStep('menu')}>‹ Back</button>
+            <div className="recipe-card-quick-days">
+              <button type="button" className="recipe-card-quick-day" disabled={busy} onClick={() => addToPlannerForDate(today)}>Today</button>
+              <button type="button" className="recipe-card-quick-day" disabled={busy} onClick={() => addToPlannerForDate(tomorrow)}>Tomorrow</button>
+            </div>
+            <MiniCalendar selected={today} onSelect={addToPlannerForDate} />
+          </div>
+        )}
       </FilterDropdown>
     </>
   );
