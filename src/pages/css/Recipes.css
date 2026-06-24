@@ -287,9 +287,9 @@
 
 /* ── Image card ─────────────────────────────────────── */
 .recipe-card-img {
-  position: relative; overflow: hidden;
+  position: relative; overflow: hidden; min-height: 180px;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  transform: translateZ(0);
+  background: #1A1918; transform: translateZ(0);
 }
 .recipe-card-img img {
   width: 100%; height: auto; max-height: 300px;
