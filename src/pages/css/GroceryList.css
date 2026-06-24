@@ -209,7 +209,7 @@
   transition: all var(--transition);
 }
 .mp-meal-row--selected { background: var(--surface); border-color: var(--accent); }
-.mp-meal-check { accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+.mp-meal-check { accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; padding: 0; border: none; background: none; cursor: pointer; }
 .mp-meal-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .mp-meal-name { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mp-meal-meta { font-size: var(--text-xs); color: var(--text-tertiary); }
@@ -242,7 +242,9 @@
   text-transform: none; letter-spacing: normal; font-weight: normal; margin-bottom: 0;
 }
 .mp-ing-row--selected { background: var(--surface); border-color: var(--accent); }
-.mp-ing-name { flex: 1; font-size: var(--text-sm); font-weight: 500; color: var(--text-primary); }
+/* min-width: 0 lets this shrink/wrap instead of forcing the row wider than its container
+   when name + badge + qty don't all fit on one line (narrow viewports, long names) */
+.mp-ing-name { flex: 1; min-width: 0; font-size: var(--text-sm); font-weight: 500; color: var(--text-primary); }
 .mp-ing-qty {
   font-size: var(--text-xs); color: var(--text-tertiary); font-weight: 500;
   background: var(--bg); padding: 2px 8px; border-radius: 99px; border: 1px solid var(--border);
