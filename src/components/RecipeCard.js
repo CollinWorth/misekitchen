@@ -147,7 +147,7 @@ export default function RecipeCard({
         open={menuOpen}
         anchorRef={menuBtnRef}
         onClose={closeMenu}
-        className={`recipes-dropdown${menuStep === 'grocery' ? ' recipes-dropdown--tags' : ''}`}
+        className="recipes-dropdown"
       >
         {menuStep === 'menu' ? (
           <>
@@ -167,7 +167,7 @@ export default function RecipeCard({
             </button>
           </>
         ) : menuStep === 'planner' ? (
-          <div className="recipe-card-planner-pick" onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+          <div className="recipe-card-planner-pick">
             <button type="button" className="recipe-card-pick-back" disabled={busy} onClick={() => setMenuStep('menu')}>‹ Back</button>
             <div className="recipe-card-quick-days">
               <button type="button" className="recipe-card-quick-day" disabled={busy} onClick={() => addToPlannerForDate(today)}>Today</button>
@@ -176,7 +176,7 @@ export default function RecipeCard({
             <MiniCalendar selected={today} onSelect={addToPlannerForDate} />
           </div>
         ) : (
-          <div className="recipe-card-grocery-pick" onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+          <div className="recipe-card-grocery-pick">
             <button type="button" className="recipe-card-pick-back" disabled={busy} onClick={() => setMenuStep('menu')}>‹ Back</button>
             {groceryIngredients.length === 0 ? (
               <p className="recipe-card-grocery-empty">No ingredients to add.</p>
