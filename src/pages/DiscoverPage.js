@@ -3,15 +3,11 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { apiFetch, imgUrl } from '../api';
 import LazyImage from '../components/LazyImage';
 import FilterDropdown from '../components/FilterDropdown';
+import { cuisinePastel } from '../utils/cuisine';
 import './css/ExplorePage.css';
 import './css/FeedPage.css';
 
-const CUISINE_BG = {
-  italian:'#F5EDE8', mexican:'#E9F2E9', japanese:'#F2EDF4', chinese:'#F5EDEC',
-  indian:'#F5F0E8', american:'#EBF0F5', french:'#EEF0F8', thai:'#F3F2E7',
-  mediterranean:'#E8F2EF', greek:'#EDF0F8', korean:'#F4EDF2',
-};
-const cuisineBg = c => (c && CUISINE_BG[c.toLowerCase()]) || '#F2F0EB';
+const cuisineBg = cuisinePastel;
 
 const SORT_TABS = [
   { id: 'new',       label: '✨ New' },
@@ -546,20 +542,16 @@ export default function DiscoverPage({ user }) {
                 const id = recipe._id || recipe.id;
                 const saved = savedIds.has(id);
                 const time = fmtTime(recipe);
-                const hasImageUrl = !!recipe.image_url;
-                const imageFailed = failedImages.has(id);
+                const hasImage = !!recipe.image_url && !failedImages.has(id);
                 return (
                   <article key={id}
-                    className={`ex-card${hasImageUrl ? '' : ' ex-card--no-image'}`}
-                    style={hasImageUrl ? {} : { background: cuisineBg(recipe.cuisine) }}
+                    className={`ex-card${hasImage ? '' : ' ex-card--no-image'}`}
+                    style={hasImage ? {} : { background: cuisineBg(recipe.cuisine) }}
                     onClick={() => goToRecipe(id)}>
-                    {hasImageUrl && (
-                      <div className="ex-card-img"
-                        style={imageFailed ? { background: cuisineBg(recipe.cuisine) } : undefined}>
-                        {!imageFailed && (
-                          <LazyImage src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} eager={idx < 8}
-                            onError={() => setFailedImages(prev => new Set(prev).add(id))} />
-                        )}
+                    {hasImage && (
+                      <div className="ex-card-img">
+                        <LazyImage src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} eager={idx < 8}
+                          onError={() => setFailedImages(prev => new Set(prev).add(id))} />
                         {recipe.cuisine && <span className="ex-card-cuisine">{recipe.cuisine}</span>}
                       </div>
                     )}

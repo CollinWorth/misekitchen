@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { imgUrl } from '../api';
+import { cuisinePastel } from '../utils/cuisine';
 import './css/LandingPage.css';
 
 const FEATURES = [
@@ -34,6 +35,7 @@ const STEPS = [
 
 export default function LandingPage() {
   const [featured, setFeatured] = useState([]);
+  const [failedImages, setFailedImages] = useState(new Set());
 
   useEffect(() => {
     const api = process.env.REACT_APP_API_URL || 'http://localhost:8000';
@@ -160,22 +162,24 @@ export default function LandingPage() {
             <div className="lp-showcase-grid">
               {featured.map(recipe => {
                 const id = recipe._id || recipe.id;
+                const hasImage = !!recipe.image_url && !failedImages.has(id);
+                const mins = (recipe.prep_time || 0) + (recipe.cook_time || 0);
                 return (
-                  <Link key={id} to={`/recipes/${id}`} className="lp-recipe-card">
-                    <div className="lp-recipe-card-img">
-                      {recipe.image_url
-                        ? <img src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} loading="lazy" />
-                        : <div className="lp-recipe-card-placeholder">{recipe.recipe_name?.[0] ?? '🍽'}</div>
-                      }
-                    </div>
+                  <Link key={id} to={`/recipes/${id}`}
+                    className={`lp-recipe-card${hasImage ? '' : ' lp-recipe-card--no-image'}`}
+                    style={hasImage ? undefined : { background: cuisinePastel(recipe.cuisine) }}>
+                    {hasImage && (
+                      <div className="lp-recipe-card-img">
+                        <img src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} loading="lazy"
+                          onError={() => setFailedImages(prev => new Set(prev).add(id))} />
+                      </div>
+                    )}
                     <div className="lp-recipe-card-body">
                       {recipe.category && <span className="lp-recipe-card-tag">{recipe.category}</span>}
                       <div className="lp-recipe-card-name">{recipe.recipe_name}</div>
-                      {(recipe.cook_time || recipe.prep_time) && (
-                        <div className="lp-recipe-card-meta">
-                          {(recipe.prep_time || 0) + (recipe.cook_time || 0)} min
-                        </div>
-                      )}
+                      <div className="lp-recipe-card-meta">
+                        {[recipe.cuisine, mins > 0 && `${mins} min`].filter(Boolean).join(' · ')}
+                      </div>
                     </div>
                   </Link>
                 );

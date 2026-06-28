@@ -2,15 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch, imgUrl } from '../api';
 import LazyImage from '../components/LazyImage';
+import { cuisinePastel } from '../utils/cuisine';
 import './css/ExplorePage.css';
 // Note: uses own card styles — intentionally different from Recipes page
 
-const CUISINE_BG = {
-  italian:'#F5EDE8', mexican:'#E9F2E9', japanese:'#F2EDF4', chinese:'#F5EDEC',
-  indian:'#F5F0E8', american:'#EBF0F5', french:'#EEF0F8', thai:'#F3F2E7',
-  mediterranean:'#E8F2EF', greek:'#EDF0F8', korean:'#F4EDF2',
-};
-const cuisineBg = c => (c && CUISINE_BG[c.toLowerCase()]) || '#F2F0EB';
+const cuisineBg = cuisinePastel;
 
 const STATIC_TABS = [
   { id: 'all',      label: 'All' },
