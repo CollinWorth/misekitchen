@@ -6,14 +6,8 @@ import { pantryGet, pantrySave, pantryMatches, getCatOverrides, effectiveCategor
 import StarRating from './StarRating';
 import FilterDropdown from './FilterDropdown';
 import MiniCalendar from './MiniCalendar';
+import { cuisinePastel } from '../utils/cuisine';
 
-const CUISINE_PASTELS = {
-  italian: '#F5EDE8', mexican: '#E9F2E9', japanese: '#F2EDF4',
-  chinese: '#F5EDEC', indian: '#F5F0E8', american: '#EBF0F5',
-  french: '#EEF0F8', thai: '#F3F2E7', mediterranean: '#E8F2EF',
-  greek: '#EDF0F8', korean: '#F4EDF2',
-};
-const cuisinePastel = c => CUISINE_PASTELS[(c || '').toLowerCase()] || '#F2F0EB';
 const totalTime = r => {
   const t = (r.prep_time || 0) + (r.cook_time || 0);
   return t > 0 ? `${t}m` : null;
@@ -36,7 +30,6 @@ export default function RecipeCard({
   showRating = true,
   showServings = false,
   showPublicBadge = false,
-  textFallback = false,
 }) {
   const location = useLocation();
   const toast = useToast();
@@ -243,12 +236,18 @@ export default function RecipeCard({
     </>
   );
 
-  if (!hasImage && textFallback) {
+  // Standardized "info fallback": any recipe with no usable image (missing or
+  // failed to load) renders the recipe info as text on a cuisine-pastel
+  // surface. See docs/RecipeCard.md. This is the single no-image treatment.
+  if (!hasImage) {
     return (
       <div className="recipe-card recipe-card--text">
         <Link to={`/recipes/${recipeId}`} state={{ from: location.pathname }} className="recipe-card-link" onClick={onClick}>
           <div className="recipe-card-text" style={{ background: cuisinePastel(recipe.cuisine) }}>
-            {recipe.category && <span className="recipe-card-text-category">{recipe.category}</span>}
+            <div className="recipe-card-text-tags">
+              {recipe.category && <span className="recipe-card-text-category">{recipe.category}</span>}
+              {showPublicBadge && recipe.is_public && <span className="recipe-overlay-badge pf-public-badge">public</span>}
+            </div>
             <div className="recipe-card-title">{recipe.recipe_name}</div>
             <div className="recipe-card-sub">
               {[recipe.cuisine, totalTime(recipe), recipe.servings && `Serves ${recipe.servings}`]
@@ -270,10 +269,7 @@ export default function RecipeCard({
     <div className="recipe-card">
       <Link to={`/recipes/${recipeId}`} state={{ from: location.pathname }} className="recipe-card-link" onClick={onClick}>
         <div className="recipe-card-img">
-          {hasImage
-            ? <img src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} onError={() => setImgFailed(true)} />
-            : <div className="recipe-placeholder" style={{ background: cuisinePastel(recipe.cuisine) }} />
-          }
+          <img src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} onError={() => setImgFailed(true)} />
           <div className="recipe-card-overlay">
             <div className="recipe-card-tags">
               {recipe.cuisine && <span className="recipe-overlay-badge">{recipe.cuisine}</span>}

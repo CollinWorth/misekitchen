@@ -321,7 +321,6 @@ export default function Recipes({ user }) {
                 recipe={recipe}
                 onClick={saveScrollPosition}
                 showServings
-                textFallback
               />
             ))}
           </div>
