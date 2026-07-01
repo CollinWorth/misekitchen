@@ -19,6 +19,11 @@ The fallback renders the recipe **info as text on a cuisine-pastel surface**: ca
 - Pastel colors come from the single shared palette in [src/utils/cuisine.js](../src/utils/cuisine.js) (`cuisinePastel(recipe.cuisine)`). Do **not** re-declare a local `CUISINE_BG` / `CUISINE_PASTELS` map in a page — import from there.
 - In `RecipeCard`, this is the `.recipe-card--text` branch and it is now the **default** for any image-less card (it is no longer gated behind a prop).
 - The pastel is always a light color. On a dark theme, surfaces that keep the pastel (e.g. LandingPage) pin the text dark for legibility; `.recipe-card--text` and `.ex-card--no-image` instead swap to `var(--surface-raised)` via existing `[data-theme="dark"]` overrides.
+- **No black loading boxes.** The image-card frame (`.recipe-card-img`) is given `background: cuisinePastel(...)` inline, so while a photo is loading — or if it hangs forever without firing `onError` — the card shows a pastel backdrop, not the old dark `#1A1918` box. A photo that actually errors still falls all the way through to the text card.
+
+## Hover on cards in the masonry grid
+
+The Recipes grid is CSS multi-column (`.recipe-grid { columns: N }`). **Do not put a `transform` on the hover state of a direct column child** (e.g. `.recipe-card--text:hover { transform: translateY(...) }`). Transforming a direct child of a multicol container promotes it to a GPU layer and hits a Chromium compositing bug that makes the card flicker/disappear at the peak of the animation. Use `box-shadow` (and other non-compositing properties) for hover feedback instead. The image variant's `transform: scale()` is fine because it's on the inner `<img>` inside an `overflow:hidden` layer, not on the column child itself.
 
 This standard also applies to the bespoke cards below — they each render their own markup, but the **no-image treatment** (drop the image area, show info on `cuisinePastel(...)`) is the same across all of them:
 

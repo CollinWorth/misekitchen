@@ -268,7 +268,7 @@ export default function RecipeCard({
   return (
     <div className="recipe-card">
       <Link to={`/recipes/${recipeId}`} state={{ from: location.pathname }} className="recipe-card-link" onClick={onClick}>
-        <div className="recipe-card-img">
+        <div className="recipe-card-img" style={{ background: cuisinePastel(recipe.cuisine) }}>
           <img src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} onError={() => setImgFailed(true)} />
           <div className="recipe-card-overlay">
             <div className="recipe-card-tags">

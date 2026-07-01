@@ -309,10 +309,13 @@
 
 /* ── Text-only card (no image) ──────────────────────── */
 /* Transparent base: the dark #1A1918 .recipe-card background is only a loading
-   backdrop for image cards. On a text card it has nothing to cover, and bled
-   as a dark ring at the rounded edges on hover (when the card lifts). */
-.recipe-card--text { background: transparent; border: none; transition: box-shadow 0.2s ease, transform 0.2s ease; }
-.recipe-card--text:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.10); transform: translateY(-1px); }
+   backdrop for image cards; a text card has nothing to cover. */
+.recipe-card--text { background: transparent; border: none; transition: box-shadow 0.2s ease; }
+/* Shadow-only hover (no transform). A transform here promotes the card to a GPU
+   layer, and transforming a direct child of the CSS `columns` (multicol) grid is
+   a Chromium compositing bug that made the card flicker/disappear at the top of
+   the animation. Box-shadow gives the hover feedback without the transform. */
+.recipe-card--text:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
 .recipe-card-text { padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); }
 .recipe-card-text-tags {
   display: flex; align-items: center; gap: var(--space-2);
