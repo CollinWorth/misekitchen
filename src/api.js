@@ -31,5 +31,16 @@ export async function apiFetch(path, options = {}) {
   const token = getToken();
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetch(`${API}${path}`, { ...options, headers });
+  const res = await fetch(`${API}${path}`, { ...options, headers });
+  // A 401 on an authenticated request means the token is expired/invalid — the
+  // backend only returns 401 for a bad token (ownership failures use 403). Without
+  // this, a stale session silently breaks every write forever. Drop the dead
+  // session and send the user to log in again.
+  if (res.status === 401 && token) {
+    clearSession();
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.assign('/login');
+    }
+  }
+  return res;
 }
