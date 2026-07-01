@@ -165,15 +165,15 @@ export default function LandingPage() {
                 const hasImage = !!recipe.image_url && !failedImages.has(id);
                 const mins = (recipe.prep_time || 0) + (recipe.cook_time || 0);
                 return (
-                  <Link key={id} to={`/recipes/${id}`}
-                    className={`lp-recipe-card${hasImage ? '' : ' lp-recipe-card--no-image'}`}
-                    style={hasImage ? undefined : { background: cuisinePastel(recipe.cuisine) }}>
-                    {hasImage && (
-                      <div className="lp-recipe-card-img">
+                  <Link key={id} to={`/recipes/${id}`} className="lp-recipe-card">
+                    {/* Image — always rendered; pastel fills it when there is no photo */}
+                    <div className="lp-recipe-card-img"
+                      style={hasImage ? undefined : { background: cuisinePastel(recipe.cuisine) }}>
+                      {hasImage && (
                         <img src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} loading="lazy"
                           onError={() => setFailedImages(prev => new Set(prev).add(id))} />
-                      </div>
-                    )}
+                      )}
+                    </div>
                     <div className="lp-recipe-card-body">
                       {recipe.category && <span className="lp-recipe-card-tag">{recipe.category}</span>}
                       <div className="lp-recipe-card-name">{recipe.recipe_name}</div>

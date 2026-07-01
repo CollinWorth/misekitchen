@@ -173,24 +173,26 @@ export default function ExplorePage({ user }) {
             return (
               <article
                 key={id}
-                className={`ex-card${hasImage ? '' : ' ex-card--no-image'}`}
-                style={hasImage ? {} : { background: cuisineBg(recipe.cuisine) }}
+                className="ex-card"
                 onClick={() => navigate(`/recipes/${id}`)}
               >
-                {/* Image */}
-                {hasImage && (
-                  <div className="ex-card-img">
+                {/* Image — always rendered; pastel fills it when there is no photo */}
+                <div
+                  className="ex-card-img"
+                  style={hasImage ? undefined : { background: cuisineBg(recipe.cuisine) }}
+                >
+                  {hasImage && (
                     <LazyImage
                       src={imgUrl(recipe.image_url)}
                       alt={recipe.recipe_name}
                       eager={idx < 8}
                       onError={() => setFailedImages(prev => new Set(prev).add(id))}
                     />
-                    {recipe.cuisine && (
-                      <span className="ex-card-cuisine">{recipe.cuisine}</span>
-                    )}
-                  </div>
-                )}
+                  )}
+                  {recipe.cuisine && (
+                    <span className="ex-card-cuisine">{recipe.cuisine}</span>
+                  )}
+                </div>
 
                 {/* Body */}
                 <div className="ex-card-body">

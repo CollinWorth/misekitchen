@@ -388,14 +388,6 @@
   transform: scale(1.04);
 }
 
-/* No-image / failed-image cards drop the image area and show the recipe info
-   on a cuisine-pastel surface (set inline). The pastel is always light, so
-   pin the body text dark for legibility regardless of theme. */
-.lp-recipe-card--no-image .lp-recipe-card-body { padding: 20px 16px; }
-.lp-recipe-card--no-image .lp-recipe-card-name { color: #1A1918; }
-.lp-recipe-card--no-image .lp-recipe-card-meta { color: rgba(26,25,24,0.6); }
-.lp-recipe-card--no-image .lp-recipe-card-tag  { color: rgba(26,25,24,0.75); }
-
 .lp-recipe-card-body {
   padding: 16px;
 }

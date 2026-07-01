@@ -285,10 +285,10 @@
 }
 .recipe-card-menu-btn:hover { background: rgba(26,25,24,0.85); }
 
-/* ── Image card ─────────────────────────────────────── */
+/* ── Card (image OR no-image — identical structure) ─── */
 .recipe-card-img {
   position: relative; overflow: hidden; min-height: 180px;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-radius: var(--radius-lg);
   background: #1A1918; transform: translateZ(0);
 }
 .recipe-card-img img {
@@ -306,44 +306,14 @@
 .recipe-card:hover .recipe-card-overlay {
   background: linear-gradient(to top, rgba(10,10,10,0.9) 0%, rgba(10,10,10,0.3) 60%, transparent 100%);
 }
-
-/* ── Text-only card (no image) ──────────────────────── */
-/* Transparent base: the dark #1A1918 .recipe-card background is only a loading
-   backdrop for image cards; a text card has nothing to cover. */
-.recipe-card--text { background: transparent; border: none; transition: box-shadow 0.2s ease; }
-/* Shadow-only hover (no transform). A transform here promotes the card to a GPU
-   layer, and transforming a direct child of the CSS `columns` (multicol) grid is
-   a Chromium compositing bug that made the card flicker/disappear at the top of
-   the animation. Box-shadow gives the hover feedback without the transform. */
-.recipe-card--text:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
-.recipe-card-text { padding: var(--space-6) var(--space-5); border-radius: var(--radius-lg); }
-.recipe-card-text-tags {
-  display: flex; align-items: center; gap: var(--space-2);
-  margin-bottom: var(--space-2); min-height: 1em;
+/* No photo: the pastel fills the frame. The overlay text is white (same as image
+   cards), so the gradient is darkened enough that it stays legible over the light
+   pastel while the cuisine color still tints the top of the card. */
+.recipe-card-img--no-image .recipe-card-overlay {
+  background: linear-gradient(to top, rgba(10,10,10,0.72) 0%, rgba(10,10,10,0.5) 55%, rgba(10,10,10,0.32) 100%);
 }
-.recipe-card-text-category {
-  font-size: var(--text-xs); font-weight: 600;
-  letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-secondary);
-}
-/* Public badge on the light pastel text card needs solid colors for legibility
-   (the .recipe-overlay-badge base is white-on-translucent, meant for dark images). */
-.recipe-card-text-tags .recipe-overlay-badge {
-  background: rgba(0,0,0,0.06); color: var(--text-secondary);
-  border-color: transparent; backdrop-filter: none;
-}
-.recipe-card-text-tags .pf-public-badge {
-  background: rgba(45,157,92,0.85) !important;
-  border-color: transparent !important; color: #fff;
-}
-.recipe-card--text .recipe-card-title {
-  font-size: var(--text-base); font-weight: 700;
-  color: var(--text-primary); line-height: 1.35; letter-spacing: -0.01em;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-}
-.recipe-card--text .recipe-card-sub {
-  font-size: var(--text-xs); color: var(--text-tertiary);
-  margin-top: var(--space-2); font-weight: 500;
+.recipe-card:hover .recipe-card-img--no-image .recipe-card-overlay {
+  background: linear-gradient(to top, rgba(10,10,10,0.8) 0%, rgba(10,10,10,0.58) 55%, rgba(10,10,10,0.4) 100%);
 }
 
 .recipe-card-tags { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
@@ -353,9 +323,6 @@
 .recipe-card-rating .star--filled { color: #f5c842; }
 .recipe-card-rating .star--empty  { color: rgba(255,255,255,0.35); }
 .recipe-card-rating .star-count   { color: rgba(255,255,255,0.7); }
-.recipe-card--text .recipe-card-rating .star--filled { color: var(--accent); }
-.recipe-card--text .recipe-card-rating .star--empty  { color: var(--text-tertiary); }
-.recipe-card--text .recipe-card-rating .star-count   { color: var(--text-secondary); }
 
 /* ── Loading skeletons ──────────────────────────────── */
 .recipes-loading {
@@ -414,10 +381,6 @@
 
 /* ── Dark mode ───────────────────────────────────────── */
 [data-theme="dark"] .recipe-card          { background: var(--surface); }
-[data-theme="dark"] .recipe-card--text   { border: 1.5px solid var(--border); }
-[data-theme="dark"] .recipe-card-text    { background: var(--surface-raised) !important; }
-[data-theme="dark"] .recipe-card--text .recipe-card-title { color: var(--text-primary); }
-[data-theme="dark"] .recipe-card--text .recipe-card-sub   { color: var(--text-tertiary); }
 [data-theme="dark"] .recipe-hero          { background: #111110; }
 [data-theme="dark"] .recipes-pill--active  { background: var(--accent); border-color: var(--accent); }
 [data-theme="dark"] .recipes-dropdown { background: var(--surface-raised); }
@@ -447,6 +410,5 @@
 @media (hover: none) {
   .recipe-card:hover .recipe-card-img img { transform: none; }
   .recipe-hero:hover .recipe-hero-img img  { transform: none; }
-  .recipe-card--text:hover { transform: none; box-shadow: none; }
   .recipes-import-card:hover { transform: none; }
 }
