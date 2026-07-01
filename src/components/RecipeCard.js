@@ -236,40 +236,19 @@ export default function RecipeCard({
     </>
   );
 
-  // Standardized "info fallback": any recipe with no usable image (missing or
-  // failed to load) renders the recipe info as text on a cuisine-pastel
-  // surface. See docs/RecipeCard.md. This is the single no-image treatment.
-  if (!hasImage) {
-    return (
-      <div className="recipe-card recipe-card--text">
-        <Link to={`/recipes/${recipeId}`} state={{ from: location.pathname }} className="recipe-card-link" onClick={onClick}>
-          <div className="recipe-card-text" style={{ background: cuisinePastel(recipe.cuisine) }}>
-            <div className="recipe-card-text-tags">
-              {recipe.category && <span className="recipe-card-text-category">{recipe.category}</span>}
-              {showPublicBadge && recipe.is_public && <span className="recipe-overlay-badge pf-public-badge">public</span>}
-            </div>
-            <div className="recipe-card-title">{recipe.recipe_name}</div>
-            <div className="recipe-card-sub">
-              {[recipe.cuisine, totalTime(recipe), recipe.servings && `Serves ${recipe.servings}`]
-                .filter(Boolean).join(' · ')}
-            </div>
-            {showRating && (
-              <div className="recipe-card-rating">
-                <StarRating rating={recipe.avg_rating || 0} showScore={recipe.avg_rating > 0} size="sm" />
-              </div>
-            )}
-          </div>
-        </Link>
-        {menu}
-      </div>
-    );
-  }
-
+  // Every recipe renders the SAME card: image frame + overlay. When there is no
+  // usable image (missing or failed to load) the frame is filled with the
+  // cuisine pastel instead of a photo — there is no separate "text card".
+  // The `--no-image` class only strengthens the overlay gradient so the white
+  // overlay text stays legible over the light pastel. See docs/RecipeCard.md.
   return (
     <div className="recipe-card">
       <Link to={`/recipes/${recipeId}`} state={{ from: location.pathname }} className="recipe-card-link" onClick={onClick}>
-        <div className="recipe-card-img" style={{ background: cuisinePastel(recipe.cuisine) }}>
-          <img src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} onError={() => setImgFailed(true)} />
+        <div
+          className={`recipe-card-img${hasImage ? '' : ' recipe-card-img--no-image'}`}
+          style={{ background: cuisinePastel(recipe.cuisine) }}
+        >
+          {hasImage && <img src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} onError={() => setImgFailed(true)} />}
           <div className="recipe-card-overlay">
             <div className="recipe-card-tags">
               {recipe.cuisine && <span className="recipe-overlay-badge">{recipe.cuisine}</span>}

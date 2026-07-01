@@ -241,8 +241,6 @@
   cursor: pointer; transition: box-shadow var(--transition), border-color var(--transition);
 }
 .ex-card:hover { box-shadow: var(--shadow-lg); border-color: var(--border-strong); }
-.ex-card--no-image { border: none; }
-.ex-card--no-image:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.10); }
 
 /* ── Card image ── */
 .ex-card-img {
@@ -405,7 +403,6 @@
   border-bottom-color: rgba(255,255,255,0.06);
 }
 [data-theme="dark"] .ex-card { background: #1E1D1C; border-color: rgba(255,255,255,0.10); }
-[data-theme="dark"] .ex-card--no-image { background: var(--surface-raised) !important; }
 [data-theme="dark"] .ex-tab--active { background: var(--accent); border-color: var(--accent); color: #fff; }
 [data-theme="dark"] .people-follow-btn { background: var(--accent); border-color: var(--accent); }
 [data-theme="dark"] .ex-spotlight-card { background: var(--surface-raised); }

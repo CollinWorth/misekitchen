@@ -2,15 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { apiFetch, imgUrl } from '../api';
 import LazyImage from '../components/LazyImage';
+import { cuisinePastel } from '../utils/cuisine';
 import './css/FeedPage.css';
-
-const CUISINE_PASTELS = {
-  italian:'#F5EDE8', mexican:'#E9F2E9', japanese:'#F2EDF4',
-  chinese:'#F5EDEC', indian:'#F5F0E8', american:'#EBF0F5',
-  french:'#EEF0F8', thai:'#F3F2E7', mediterranean:'#E8F2EF',
-  greek:'#EDF0F8', korean:'#F4EDF2',
-};
-const cuisinePastel = c => CUISINE_PASTELS[(c||'').toLowerCase()] || '#F2F0EB';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -34,6 +27,7 @@ export default function FeedPage({ user }) {
   });
   const [likeCounts, setLikeCounts] = useState({});
   const [savedIds, setSavedIds]     = useState(new Set());
+  const [failedImages, setFailedImages] = useState(new Set());
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -118,16 +112,16 @@ export default function FeedPage({ user }) {
                     {recipe.category && <span className="feed-post-category">{recipe.category}</span>}
                   </div>
 
-                  {/* Image or text hero */}
-                  <div className="feed-post-img" onClick={() => navigate(`/recipes/${id}`)}>
-                    {recipe.image_url
-                      ? <LazyImage src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} eager={idx < 3} />
-                      : <div className="feed-post-placeholder" style={{background: cuisinePastel(recipe.cuisine)}}>
-                          {recipe.category && <span className="feed-placeholder-pill">{recipe.category}</span>}
-                          <span className="feed-post-placeholder-name">{recipe.recipe_name}</span>
-                          {totalTime > 0 && <span className="feed-placeholder-time">{totalTime} min</span>}
-                        </div>
-                    }
+                  {/* Image — always rendered; pastel fills it when there is no photo */}
+                  <div
+                    className={`feed-post-img${recipe.image_url && !failedImages.has(id) ? '' : ' feed-post-img--no-image'}`}
+                    onClick={() => navigate(`/recipes/${id}`)}
+                    style={recipe.image_url && !failedImages.has(id) ? undefined : {background: cuisinePastel(recipe.cuisine)}}
+                  >
+                    {recipe.image_url && !failedImages.has(id) && (
+                      <LazyImage src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} eager={idx < 3}
+                        onError={() => setFailedImages(prev => new Set(prev).add(id))} />
+                    )}
                   </div>
 
                   {/* Action row */}

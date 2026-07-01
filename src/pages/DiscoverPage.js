@@ -314,16 +314,15 @@ export default function DiscoverPage({ user }) {
                       </Link>
                       {recipe.category && <span className="feed-post-category">{recipe.category}</span>}
                     </div>
-                    <div className="feed-post-img" onClick={() => goToRecipe(id)}>
-                      {recipe.image_url && !failedImages.has(id)
-                        ? <LazyImage src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} eager={idx < 3}
-                            onError={() => setFailedImages(prev => new Set(prev).add(id))} />
-                        : <div className="feed-post-placeholder" style={{background: cuisineBg(recipe.cuisine)}}>
-                            {recipe.category && <span className="feed-placeholder-pill">{recipe.category}</span>}
-                            <span className="feed-post-placeholder-name">{recipe.recipe_name}</span>
-                            {totalTime > 0 && <span className="feed-placeholder-time">{totalTime} min</span>}
-                          </div>
-                      }
+                    <div
+                      className={`feed-post-img${recipe.image_url && !failedImages.has(id) ? '' : ' feed-post-img--no-image'}`}
+                      onClick={() => goToRecipe(id)}
+                      style={recipe.image_url && !failedImages.has(id) ? undefined : {background: cuisineBg(recipe.cuisine)}}
+                    >
+                      {recipe.image_url && !failedImages.has(id) && (
+                        <LazyImage src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} eager={idx < 3}
+                          onError={() => setFailedImages(prev => new Set(prev).add(id))} />
+                      )}
                     </div>
                     <div className="feed-post-actions">
                       {recipe.avg_rating > 0 && (
@@ -545,16 +544,17 @@ export default function DiscoverPage({ user }) {
                 const hasImage = !!recipe.image_url && !failedImages.has(id);
                 return (
                   <article key={id}
-                    className={`ex-card${hasImage ? '' : ' ex-card--no-image'}`}
-                    style={hasImage ? {} : { background: cuisineBg(recipe.cuisine) }}
+                    className="ex-card"
                     onClick={() => goToRecipe(id)}>
-                    {hasImage && (
-                      <div className="ex-card-img">
+                    {/* Image — always rendered; pastel fills it when there is no photo */}
+                    <div className="ex-card-img"
+                      style={hasImage ? undefined : { background: cuisineBg(recipe.cuisine) }}>
+                      {hasImage && (
                         <LazyImage src={imgUrl(recipe.image_url)} alt={recipe.recipe_name} eager={idx < 8}
                           onError={() => setFailedImages(prev => new Set(prev).add(id))} />
-                        {recipe.cuisine && <span className="ex-card-cuisine">{recipe.cuisine}</span>}
-                      </div>
-                    )}
+                      )}
+                      {recipe.cuisine && <span className="ex-card-cuisine">{recipe.cuisine}</span>}
+                    </div>
                     <div className="ex-card-body">
                       <h3 className="ex-card-title">{recipe.recipe_name}</h3>
                       <div className="ex-card-meta">
