@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
+from datetime import datetime
 
 
 class Ingredient(BaseModel):
@@ -23,6 +24,7 @@ class Recipe(BaseModel):
     is_public: bool = False
     avg_rating: float = 0.0
     rating_count: int = 0
+    created_at: Optional[datetime] = None
     user_id: str
     original_recipe_id: Optional[str] = None
     original_author_name: Optional[str] = None

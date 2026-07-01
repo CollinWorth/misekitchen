@@ -13,6 +13,7 @@ import json
 import anthropic
 from fractions import Fraction
 from urllib.parse import urlparse
+from datetime import datetime, timezone
 from recipe_scrapers import scrape_html
 
 # Cap stored image size to stay well under MongoDB's 16 MB BSON document limit.
@@ -912,6 +913,7 @@ async def save_recipe_to_collection(recipe_id: str, user_id: str = Depends(get_c
     copy["original_recipe_name"] = source.get("recipe_name", "")
     copy["original_author_name"] = author_name
     copy["is_modified"] = False
+    copy["created_at"] = datetime.now(timezone.utc)
     # Normalize the image to a relative served path (no-op if already one)
     copy["image_url"] = await _maybe_archive_image(copy.get("image_url"))
     result = await recipes_collection.insert_one(copy)
@@ -977,6 +979,7 @@ async def _maybe_archive_image(url: str | None) -> str | None:
 @router.post("/")
 async def create_recipe(recipe: Recipe, user_id: str = Depends(get_current_user_id)):
     recipe_dict = recipe.model_dump()
+    recipe_dict["created_at"] = datetime.now(timezone.utc)
     recipe_dict["user_id"] = ObjectId(user_id)
     recipe_dict["image_url"] = await _maybe_archive_image(recipe_dict.get("image_url"))
     result = await recipes_collection.insert_one(recipe_dict)

@@ -35,6 +35,34 @@ async def get_meal_plans(date: str, userId: str):
         print(f"Error fetching meal plans: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch meal plans: {str(e)}")
 
+@router.get("/range/{start}/{end}/{userId}")
+async def get_meal_plans_range(start: str, end: str, userId: str):
+    try:
+        print(f"Fetching meal plans in range {start}..{end} for userId: {userId}")
+
+        try:
+            user_obj_id = ObjectId(userId)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid userId format")
+
+        # Dates are "YYYY-MM-DD" strings, which sort lexicographically, so an
+        # inclusive range query works with a single indexed lookup (no per-day loop).
+        meal_plans = await mealPlans_collection.find({
+            "user_id": user_obj_id,
+            "date": {"$gte": start, "$lte": end},
+        }).to_list(length=None)
+
+        grouped = {}
+        for meal in meal_plans:
+            meal = _convert(meal)
+            grouped.setdefault(meal["date"], []).append(meal)
+
+        print(f"Meal plans fetched in range: {len(meal_plans)} across {len(grouped)} days")
+        return grouped
+    except Exception as e:
+        print(f"Error fetching meal plans range: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch meal plans: {str(e)}")
+
 @router.post("/Create/{date}/{userId}/{recipeId}")
 async def create_meal_plan(date: str, userId: str, recipeId: str, body: Optional[MealPlanBody] = None):
     try:
