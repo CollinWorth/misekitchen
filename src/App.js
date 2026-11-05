@@ -58,6 +58,7 @@ function App() {
       <ScrollToTop />
       <ToastProvider>
       <div className="App">
+        <PreviewBadge />
         <NavBar user={user} onLogout={handleLogout} />
         <Routes>
           <Route path="/" element={user ? <Recipes user={user} /> : <LandingPage />} />
@@ -81,7 +82,6 @@ function App() {
       </div>
       </ToastProvider>
     </Router>
-    <PreviewBadge />
     <Analytics />
     <SpeedInsights />
     </>
