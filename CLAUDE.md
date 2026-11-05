@@ -84,7 +84,7 @@ Rules from Collin for the automated worker that implements issues assigned to it
 - Check your work: `CI=false DISABLE_ESLINT_PLUGIN=true npm run build` for frontend, `python3 -m py_compile <file>` for backend files you touched. (Linting is off because the lock file is out of sync, see issue #6.)
 - The worker pushes and opens the PR. You only commit. Don't mention pushing in your summary.
 - If the issue is unclear or risky, make no commits and say why.
-- To "remove" a commit you made, undo its changes in a new commit.
+- Never rewrite history. If asked to remove a commit, add a new commit that undoes it (`git revert --no-edit <sha>` works), with the message `Revert of <short sha>: <original subject>`.
 
 **Writing**
 - PR summary: at most 5 lines. What changed, one line on how to check it on the Vercel preview, any real doubt. No headings, no restating the issue, no file lists.
