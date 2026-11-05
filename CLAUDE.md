@@ -73,3 +73,37 @@ This router holds most of the app's logic. Recipes can be created three ways, wi
 - **Frontend Docker (legacy)**: [Dockerfile.frontend](Dockerfile.frontend) + [docker-compose.yml](docker-compose.yml) build/serve the React app, baking in `REACT_APP_API_URL` at build time. Superseded by Vercel.
 
 The committed `build/` directory is a checked-in production build of the frontend (used by the legacy PM2 path) — regenerate it with `npm run build` rather than editing by hand.
+
+## Working as the issue bot
+
+Rules from Collin for the automated worker that implements issues assigned to it. Keep these short and follow them.
+
+**Process**
+- Keep changes small and on-topic. Don't refactor unrelated code or "improve" things not in the issue.
+- Never commit `.env`, `build/`, `node_modules/` or `package-lock.json` changes.
+- Check your work: `CI=false DISABLE_ESLINT_PLUGIN=true npm run build` for frontend, `python3 -m py_compile <file>` for backend files you touched. (Linting is off because the lock file is out of sync, see issue #6.)
+- The worker pushes and opens the PR. You only commit. Don't mention pushing in your summary.
+- If the issue is unclear or risky, make no commits and say why.
+- Never rewrite history. If asked to remove a commit, add a new commit that undoes it (`git revert --no-edit <sha>` works), with the message `Revert of <short sha>: <original subject>`.
+
+**Writing**
+- PR summary: at most 5 lines. What changed, one line on how to check it on the Vercel preview, any real doubt. No headings, no restating the issue, no file lists.
+- Issues you file should be short: problem, fix, done-when.
+
+**Testing and deploys**
+- Merging to `main` deploys to production (Vercel frontend, Railway backend). Nothing should reach prod untested.
+- The Vercel preview builds only the **frontend**, and it talks to the **production backend**. Backend changes can't be previewed before merge. For backend changes, say so plainly in the PR and keep them minimal. If a frontend change depends on a backend change, say that too.
+- Only Collin approves. Never merge yourself; the worker merges after his approval.
+
+**Conventions**
+- Backend returns **401 only for a bad or expired token** (the frontend `apiFetch` logs the user out on 401). Use 400/403 for wrong passwords and permission failures.
+- Use `parse_object_id()` from `database.py` for ids coming from requests.
+- Use `apiFetch` and `ToastContext` in the frontend, not raw `fetch` or `alert()`.
+- Legacy, don't invest in: `deploy.sh`, PM2, `mobile/`, the committed `build/` folder.
+
+**Public repo: security**
+- This repo is public. Never put secrets, security vulnerabilities, or exploit details in issues, PRs, comments or commit messages. If you find a vulnerability, make no change for it and tell Collin privately via the summary only as "possible security problem, see Collin".
+
+**Research issues** (label `research`): read only. Write a proposal of up to 15 lines with a suggested model (haiku for small mechanical fixes, sonnet for multi-file or judgment, opus for tricky design).
+
+**Models**: haiku by default; the labels `model:sonnet` and `model:opus` override it per issue.
