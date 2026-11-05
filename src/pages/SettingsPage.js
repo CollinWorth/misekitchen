@@ -1,16 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { apiFetch, clearSession, expireSession } from '../api';
+import { apiFetch, clearSession } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import './css/SettingsPage.css';
 
 const WEEK_START_KEY = 'mise_week_start';
-
-// Older backends answer a wrong password with 401, which apiFetch would treat as
-// an expired session. Only log out on a 401 that isn't a password mismatch.
-const WRONG_PASSWORD_DETAILS = ['Current password is incorrect', 'Incorrect password'];
-const isExpiredSession = (res, err) =>
-  res.status === 401 && !WRONG_PASSWORD_DETAILS.includes(err.detail);
 
 export default function SettingsPage({ user, onLogout }) {
   const navigate = useNavigate();
@@ -84,7 +78,6 @@ export default function SettingsPage({ user, onLogout }) {
     try {
       const r = await apiFetch('/users/me/password', {
         method: 'PUT',
-        authRedirect: false,
         body: JSON.stringify({ current_password: currentPw, new_password: newPw }),
       });
       if (r.ok) {
@@ -92,7 +85,6 @@ export default function SettingsPage({ user, onLogout }) {
         setCurrentPw(''); setNewPw(''); setConfirmPw('');
       } else {
         const err = await r.json().catch(() => ({}));
-        if (isExpiredSession(r, err)) { expireSession(); return; }
         toast.error(err.detail || 'Failed to change password');
       }
     } catch {
@@ -111,7 +103,6 @@ export default function SettingsPage({ user, onLogout }) {
     try {
       const r = await apiFetch('/users/me', {
         method: 'DELETE',
-        authRedirect: false,
         body: JSON.stringify({ password: deletePw }),
       });
       if (r.ok) {
@@ -120,7 +111,6 @@ export default function SettingsPage({ user, onLogout }) {
         navigate('/');
       } else {
         const err = await r.json().catch(() => ({}));
-        if (isExpiredSession(r, err)) { expireSession(); return; }
         toast.error(err.detail || 'Failed to delete account');
       }
     } catch {

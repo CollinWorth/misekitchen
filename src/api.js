@@ -27,25 +27,20 @@ export function clearSession() {
   localStorage.removeItem('mise_user');
 }
 
-export function expireSession() {
-  clearSession();
-  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-    window.location.assign('/login');
-  }
-}
-
 export async function apiFetch(path, options = {}) {
-  const { authRedirect = true, ...fetchOptions } = options;
   const token = getToken();
-  const headers = { 'Content-Type': 'application/json', ...fetchOptions.headers };
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API}${path}`, { ...fetchOptions, headers });
+  const res = await fetch(`${API}${path}`, { ...options, headers });
   // A 401 on an authenticated request means the token is expired/invalid — the
   // backend only returns 401 for a bad token (ownership failures use 403). Without
   // this, a stale session silently breaks every write forever. Drop the dead
-  // session and send the user to log in again. Callers that need to inspect a 401
-  // themselves (password checks — older backends used 401 for a wrong password)
-  // pass authRedirect: false.
-  if (res.status === 401 && token && authRedirect) expireSession();
+  // session and send the user to log in again.
+  if (res.status === 401 && token) {
+    clearSession();
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.assign('/login');
+    }
+  }
   return res;
 }
