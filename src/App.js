@@ -23,6 +23,7 @@ import SettingsPage from './pages/SettingsPage';
 import CookMode from './pages/CookMode';
 import NotFoundPage from './pages/NotFoundPage';
 import LandingPage from './pages/LandingPage';
+import PreviewBadge from './components/PreviewBadge';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -57,6 +58,7 @@ function App() {
       <ScrollToTop />
       <ToastProvider>
       <div className="App">
+        <PreviewBadge />
         <NavBar user={user} onLogout={handleLogout} />
         <Routes>
           <Route path="/" element={user ? <Recipes user={user} /> : <LandingPage />} />
