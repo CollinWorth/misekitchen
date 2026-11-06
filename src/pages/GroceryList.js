@@ -71,10 +71,28 @@ function mergeIngredients(recipes) {
     const mult = recipe._count || 1;
     for (const ing of (recipe.ingredients || [])) {
       if (!(ing.name || '').trim()) continue;
-      const { qty: rawQty, unit: rawUnit } = parseQtyUnit(ing.quantity, ing.unit);
+      let { qty: rawQty, unit: rawUnit } = parseQtyUnit(ing.quantity, ing.unit);
+      let ingName = ing.name.trim();
+      // Some recipes put the whole line in the name ("2 cups flour") with quantity and unit empty
+      if (!rawUnit && !String(ing.quantity || '').trim()) {
+        const p = parseInput(ingName);
+        if (p.quantity) {
+          rawQty = parseFraction(p.quantity) || 0;
+          rawUnit = p.unit;
+          ingName = p.name || ingName;
+        }
+      }
+      // Others keep the unit at the start of the name ("cups flour") with the unit field empty
+      if (!rawUnit) {
+        const nameUnit = ingName.match(UNITS_RE);
+        if (nameUnit && ingName.length > nameUnit[0].length) {
+          rawUnit = nameUnit[0];
+          ingName = ingName.slice(rawUnit.length).replace(/^\s*(of\s+)?/i, '').trim() || ingName;
+        }
+      }
       const qty  = rawQty * mult;
       const unit = normalizeUnit(rawUnit);
-      const key  = `${normalizeIngKey(ing.name)}|${unit}`;
+      const key  = `${normalizeIngKey(ingName)}|${unit}`;
       const source = {
         recipe_id: recipe._id || null,
         recipe_title: recipe.recipe_name || '',
@@ -85,11 +103,11 @@ function mergeIngredients(recipes) {
       if (result[key]) {
         const ex = result[key];
         if (qty > 0) ex.quantity = fmtQty(parseFraction(ex.quantity) + qty);
-        if (ing.name.length > ex.name.length) ex.name = ing.name;
+        if (ingName.length > ex.name.length) ex.name = ingName;
         ex.sources.push(source);
       } else {
         result[key] = {
-          name: ing.name,
+          name: ingName,
           quantity: qty > 0 ? fmtQty(qty) : (ing.quantity || ''),
           unit,
           sources: [source],
