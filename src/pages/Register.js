@@ -67,7 +67,8 @@ function Register({ onRegister }) {
             </label>
             <label>
               Password
-              <input type="password" name="password" value={form.password} onChange={handleChange} placeholder="••••••••" required />
+              <input type="password" name="password" value={form.password} onChange={handleChange} placeholder="••••••••" required minLength={8} />
+              <span className="auth-hint">At least 8 characters</span>
             </label>
             {error && <p className="auth-error">{error}</p>}
             {success && <p className="auth-success">{success}</p>}

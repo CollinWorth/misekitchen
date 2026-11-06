@@ -3,12 +3,25 @@ import re
 from fastapi import APIRouter, HTTPException, Body, Depends
 from database import users_collection as db, recipes_collection, follows_collection, parse_object_id
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from bson import ObjectId
 from auth import create_access_token, get_current_user_id
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+MIN_PASSWORD_LENGTH = 8
+
+
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+def find_users_by_email(email: str, exclude_id=None):
+    """Case-insensitive lookup, so accounts stored before emails were lowercased still match."""
+    query = {"email": {"$regex": f"^{re.escape(normalize_email(email))}$", "$options": "i"}}
+    if exclude_id is not None:
+        query["_id"] = {"$ne": exclude_id}
+    return db.find(query)
 
 
 class UserIn(BaseModel):
@@ -16,9 +29,19 @@ class UserIn(BaseModel):
     email: EmailStr
     password: str
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalize_email(cls, v):
+        return normalize_email(v) if isinstance(v, str) else v
+
 class ProfileUpdate(BaseModel):
     name: str
     email: EmailStr
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalize_email(cls, v):
+        return normalize_email(v) if isinstance(v, str) else v
 
 class PasswordChange(BaseModel):
     current_password: str
@@ -30,7 +53,9 @@ class AccountDelete(BaseModel):
 
 @router.post("/")
 async def create_user(user: UserIn):
-    existing = await db.find_one({"email": user.email})
+    if len(user.password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(status_code=400, detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+    existing = await find_users_by_email(user.email).to_list(1)
     if existing:
         raise HTTPException(status_code=400, detail="Email already exists")
     user_dict = user.model_dump()
@@ -43,10 +68,15 @@ async def create_user(user: UserIn):
 async def login_user(data: dict = Body(...)):
     email = data.get("email")
     password = data.get("password")
-    if not email or not password:
+    if not isinstance(email, str) or not isinstance(password, str) or not email.strip() or not password:
         raise HTTPException(status_code=400, detail="Email and password are required")
-    user = await db.find_one({"email": email})
-    if not user or not pwd_context.verify(password, user["password"]):
+    # Match any case variant; use the account whose password checks out.
+    user = None
+    async for candidate in find_users_by_email(email):
+        if pwd_context.verify(password, candidate["password"]):
+            user = candidate
+            break
+    if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     user_id = str(user["_id"])
     token = create_access_token(user_id)
@@ -67,7 +97,7 @@ async def get_me(user_id: str = Depends(get_current_user_id)):
 
 @router.put("/me")
 async def update_profile(data: ProfileUpdate, user_id: str = Depends(get_current_user_id)):
-    existing = await db.find_one({"email": data.email, "_id": {"$ne": ObjectId(user_id)}})
+    existing = await find_users_by_email(data.email, exclude_id=ObjectId(user_id)).to_list(1)
     if existing:
         raise HTTPException(status_code=400, detail="Email already in use")
     await db.update_one({"_id": ObjectId(user_id)}, {"$set": {"name": data.name, "email": data.email}})
@@ -79,8 +109,8 @@ async def change_password(data: PasswordChange, user_id: str = Depends(get_curre
     user = await db.find_one({"_id": ObjectId(user_id)})
     if not user or not pwd_context.verify(data.current_password, user["password"]):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    if len(data.new_password) < 6:
-        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    if len(data.new_password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(status_code=400, detail=f"New password must be at least {MIN_PASSWORD_LENGTH} characters")
     hashed = pwd_context.hash(data.new_password)
     await db.update_one({"_id": ObjectId(user_id)}, {"$set": {"password": hashed}})
     return {"message": "Password updated"}
