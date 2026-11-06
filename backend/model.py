@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
+import uuid
 
 
 class Ingredient(BaseModel):
@@ -28,12 +29,21 @@ class Recipe(BaseModel):
     original_author_name: Optional[str] = None
     is_modified: bool = False
 
+class GroceryItemSource(BaseModel):
+    recipe_id: Optional[str] = None
+    recipe_title: str = ""
+    quantity: str = ""
+    unit: str = ""
+    raw_line: str = ""
+
 class GroceryItem(BaseModel):
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     name: str
-    quantity: str
+    quantity: str  # display total; can be recomputed from sources
     unit: str = ""
     category: str
     checked: bool = False
+    sources: List[GroceryItemSource] = []
 
 class GroceryList(BaseModel):
     user_id: str
