@@ -78,7 +78,7 @@ async def update_profile(data: ProfileUpdate, user_id: str = Depends(get_current
 async def change_password(data: PasswordChange, user_id: str = Depends(get_current_user_id)):
     user = await db.find_one({"_id": ObjectId(user_id)})
     if not user or not pwd_context.verify(data.current_password, user["password"]):
-        raise HTTPException(status_code=401, detail="Current password is incorrect")
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
     if len(data.new_password) < 6:
         raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
     hashed = pwd_context.hash(data.new_password)
@@ -90,7 +90,7 @@ async def change_password(data: PasswordChange, user_id: str = Depends(get_curre
 async def delete_account(data: AccountDelete, user_id: str = Depends(get_current_user_id)):
     user = await db.find_one({"_id": ObjectId(user_id)})
     if not user or not pwd_context.verify(data.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Incorrect password")
+        raise HTTPException(status_code=400, detail="Incorrect password")
     oid = ObjectId(user_id)
     await asyncio.gather(
         db.delete_one({"_id": oid}),
