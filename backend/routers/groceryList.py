@@ -42,6 +42,12 @@ def _fmt_qty(n: float) -> str:
     return str(round(n, 2))
 
 
+class GroceryItemUpdate(BaseModel):
+    name: str | None = None
+    quantity: str | None = None
+    unit: str | None = None
+
+
 class FromMealPlanRequest(BaseModel):
     user_id: str
     start_date: str | None = None   # YYYY-MM-DD (used if recipe_ids not provided)
@@ -308,6 +314,31 @@ async def toggle_grocery_item(grocery_list_id: str, item_name: str):
         {"$set": {"items.$.checked": new_checked}}
     )
     return {"checked": new_checked}
+
+
+# Edit an item's name, quantity or unit in place. Only the display total changes; sources are left alone.
+@router.patch("/{grocery_list_id}/items/{item_id}")
+async def edit_grocery_item(grocery_list_id: str, item_id: str, body: GroceryItemUpdate):
+    obj_id = parse_object_id(grocery_list_id, "grocery list ID")
+    grocery_list = await grocery_collection.find_one({"_id": obj_id})
+    if not grocery_list:
+        raise HTTPException(status_code=404, detail="Grocery list not found")
+    grocery_list = await _ensure_item_ids(grocery_list)
+    current = next((i for i in grocery_list.get("items", []) if i.get("id") == item_id), None)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "name" in updates:
+        updates["name"] = updates["name"].strip()
+        if not updates["name"]:
+            raise HTTPException(status_code=400, detail="Name cannot be empty")
+    if updates:
+        await grocery_collection.update_one(
+            {"_id": obj_id, "items.id": item_id},
+            {"$set": {f"items.$.{k}": v for k, v in updates.items()}}
+        )
+    return {"message": f"Updated '{updates.get('name', current['name'])}'", "item": {**current, **updates}}
 
 
 # Clear all items (or just checked items) from a list in one query
