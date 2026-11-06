@@ -7,21 +7,40 @@ import { createPortal } from 'react-dom';
 export default function FilterDropdown({ open, anchorRef, onClose, className = '', children }) {
   const panelRef = useRef(null);
   const [coords, setCoords] = useState(null);
+  const positioned = !!coords;
 
   useLayoutEffect(() => {
     if (!open) { setCoords(null); return; }
     const update = () => {
       const rect = anchorRef.current?.getBoundingClientRect();
-      if (rect) setCoords({ top: rect.bottom + 6, left: rect.left });
+      if (!rect) return;
+      const M = 8, GAP = 6;
+      const panel = panelRef.current;
+      const w = panel ? panel.offsetWidth : 0;
+      const h = panel ? panel.scrollHeight : 0;
+      const left = Math.max(M, Math.min(rect.left, window.innerWidth - w - M));
+      const below = rect.bottom + GAP;
+      const spaceBelow = window.innerHeight - below - M;
+      const spaceAbove = rect.top - GAP - M;
+      let top = below, maxHeight;
+      if (h > spaceBelow) {
+        if (h <= spaceAbove) top = rect.top - GAP - h;
+        else if (spaceAbove > spaceBelow) { maxHeight = spaceAbove; top = rect.top - GAP - maxHeight; }
+        else maxHeight = spaceBelow;
+      }
+      setCoords(c => (c && c.top === top && c.left === left && c.maxHeight === maxHeight ? c : { top, left, maxHeight }));
     };
     update();
+    const ro = typeof ResizeObserver !== 'undefined' && panelRef.current ? new ResizeObserver(update) : null;
+    if (ro) ro.observe(panelRef.current);
     window.addEventListener('resize', update);
     window.addEventListener('scroll', update, true);
     return () => {
+      if (ro) ro.disconnect();
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [open, anchorRef]);
+  }, [open, anchorRef, positioned]);
 
   useEffect(() => {
     if (!open) return;
@@ -42,7 +61,7 @@ export default function FilterDropdown({ open, anchorRef, onClose, className = '
   if (!open || !coords) return null;
 
   return createPortal(
-    <div ref={panelRef} className={className} style={{ position: 'fixed', top: coords.top, left: coords.left, zIndex: 1000 }}>
+    <div ref={panelRef} className={className} style={{ position: 'fixed', top: coords.top, left: coords.left, zIndex: 1000, ...(coords.maxHeight ? { maxHeight: coords.maxHeight, overflowY: 'auto' } : {}) }}>
       {children}
     </div>,
     document.body
