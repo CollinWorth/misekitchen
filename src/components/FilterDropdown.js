@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 export default function FilterDropdown({ open, anchorRef, onClose, className = '', children }) {
   const panelRef = useRef(null);
   const [coords, setCoords] = useState(null);
+  const positioned = !!coords;
 
   useLayoutEffect(() => {
     if (!open) { setCoords(null); return; }
@@ -39,7 +40,7 @@ export default function FilterDropdown({ open, anchorRef, onClose, className = '
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [open, anchorRef, !!coords]);
+  }, [open, anchorRef, positioned]);
 
   useEffect(() => {
     if (!open) return;
