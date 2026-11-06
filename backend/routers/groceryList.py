@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, HTTPException
 from model import GroceryList, GroceryItem
 from pydantic import BaseModel
@@ -19,6 +20,19 @@ def convert_object_ids(doc):
         return str(doc)
     else:
         return doc
+
+
+async def _ensure_item_ids(doc: dict) -> dict:
+    """Give items saved before ids existed an id, persisted so it stays stable across reads."""
+    for i, item in enumerate(doc.get("items", [])):
+        if item.get("id"):
+            continue
+        item["id"] = uuid.uuid4().hex
+        await grocery_collection.update_one(
+            {"_id": doc["_id"], f"items.{i}.name": item.get("name"), f"items.{i}.id": {"$in": [None, ""]}},
+            {"$set": {f"items.{i}.id": item["id"]}}
+        )
+    return doc
 
 
 def _fmt_qty(n: float) -> str:
@@ -214,6 +228,7 @@ async def get_grocery_lists_userID(user_id: str):
         raise HTTPException(status_code=404, detail="Invalid user ID format")
     
     grocery_lists = await grocery_collection.find({"user_id": user_obj_id}).to_list(length=100)
+    grocery_lists = [await _ensure_item_ids(g) for g in grocery_lists]
 
     return convert_object_ids(grocery_lists)
     
@@ -231,6 +246,7 @@ async def get_grocery_list_listID(grocery_list_id: str):
     if not grocery_list:
         raise HTTPException(status_code=404, detail="Grocery list not found")
 
+    grocery_list = await _ensure_item_ids(grocery_list)
     return convert_object_ids(grocery_list)
 
 # Add a new grocery item to the list (or update quantity if item exists)
