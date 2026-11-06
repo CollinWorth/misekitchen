@@ -59,6 +59,9 @@ function normalizeUnit(u) {
   return UNIT_ALIASES[lower] || lower;
 }
 
+// Suggested units for the edit field's datalist (free text is still allowed)
+const UNIT_OPTIONS = ['cup', 'tbsp', 'tsp', 'oz', 'lb', 'g', 'kg', 'ml', 'l', 'clove', 'can', 'bunch', 'pinch', 'dash', 'slice', 'piece', 'pkg', 'sprig', 'stalk'];
+
 // ── Ingredient merging ────────────────────────────────────────────────────────
 function mergeIngredients(recipes) {
   // One line per name + unit, so different units never overwrite each other.
@@ -107,8 +110,6 @@ function fmtQty(n) {
   }
   return String(Math.round(n * 100) / 100);
 }
-
-const UNIT_OPTIONS = ['cup', 'tbsp', 'tsp', 'oz', 'lb', 'g', 'kg', 'ml', 'l', 'clove', 'can', 'pinch', 'slice', 'piece', 'pkg'];
 
 const UNITS_RE = /^(cup|cups|tbsp|tbs|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounce|ounces|fl\s?oz|lb|lbs|pound|pounds|g|gram|grams|kg|kilogram|kilograms|ml|milliliter|milliliters|liter|liters|l|quart|quarts|qt|pint|pints|gallon|gallons|clove|cloves|can|cans|bunch|pinch|dash|slice|slices|piece|pieces|sprig|sprigs|stalk|stalks|stick|sticks|head|heads|bulb|bulbs|bag|bags|jar|jars|bottle|bottles|box|boxes|pkg|package|packages)\b/i;
 
@@ -777,8 +778,8 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
             placeholder="Name"
             onKeyDown={handleEditKey}
           />
-          <button className="grocery-edit-save" onClick={onEditSave} aria-label="Save">✓</button>
-          <button className="grocery-edit-cancel" onClick={onEditCancel} aria-label="Cancel">✕</button>
+          <button className="grocery-edit-save" onClick={onEditSave} aria-label="Save item" title="Save">Save</button>
+          <button className="grocery-edit-cancel" onClick={onEditCancel} aria-label="Cancel edit" title="Cancel">✕</button>
         </div>
       ) : (
         <span className="grocery-item-name" onClick={onEditStart}>{item.name}</span>
