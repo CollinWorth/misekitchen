@@ -256,23 +256,23 @@ export default function GroceryList({ user }) {
     addItem(name);
   };
 
-  const toggleItem = async (itemName, currentChecked) => {
-    setList(l => ({ ...l, items: l.items.map(i => i.name === itemName ? { ...i, checked: !currentChecked } : i) }));
+  const toggleItem = async (itemId, currentChecked) => {
+    setList(l => ({ ...l, items: l.items.map(i => i.id === itemId ? { ...i, checked: !currentChecked } : i) }));
     if (!currentChecked) setCartOpen(true);
     try {
-      const res = await apiFetch(`/groceryList/${list._id}/${encodeURIComponent(itemName)}/check`, { method: 'PATCH' });
+      const res = await apiFetch(`/groceryList/${list._id}/items/${itemId}/check`, { method: 'PATCH' });
       if (!res.ok) throw new Error('failed');
     } catch {
       // Roll back on any failure
-      setList(l => ({ ...l, items: l.items.map(i => i.name === itemName ? { ...i, checked: currentChecked } : i) }));
+      setList(l => ({ ...l, items: l.items.map(i => i.id === itemId ? { ...i, checked: currentChecked } : i) }));
       toast.error('Could not update item.');
     }
   };
 
-  const removeItem = async (itemName) => {
-    setList(l => ({ ...l, items: l.items.filter(i => i.name !== itemName) }));
+  const removeItem = async (itemId) => {
+    setList(l => ({ ...l, items: l.items.filter(i => i.id !== itemId) }));
     try {
-      const res = await apiFetch(`/groceryList/${list._id}/${encodeURIComponent(itemName)}`, { method: 'DELETE' });
+      const res = await apiFetch(`/groceryList/${list._id}/items/${itemId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('failed');
     } catch {
       toast.error('Could not remove item.');
@@ -409,7 +409,7 @@ export default function GroceryList({ user }) {
     grouped[key].push({ ...item, _effectiveCat: key });
   }
   const sortedGroups = SECTIONS.map(s => s.key).filter(k => grouped[k]?.length > 0);
-  const addedNames   = new Set(items.map(i => i.name.toLowerCase()));
+  const addedNames   = new Set(items.map(i => (i.name || '').toLowerCase()));
 
   if (!user) return (
     <div className="grocery-splash">
@@ -674,7 +674,7 @@ export default function GroceryList({ user }) {
                 <div className="grocery-category-items">
                   {grouped[key].map((item, idx) => (
                     <GroceryItemRow
-                      key={idx}
+                      key={item.id || idx}
                       item={{ ...item, category: item._effectiveCat }}
                       editing={editingItem?.itemId === item.id}
                       editItem={editingItem?.itemId === item.id ? editingItem : null}
@@ -682,8 +682,8 @@ export default function GroceryList({ user }) {
                       onEditChange={(field, val) => setEditingItem(e => ({ ...e, [field]: val }))}
                       onEditSave={saveEdit}
                       onEditCancel={() => setEditingItem(null)}
-                      onToggle={() => toggleItem(item.name, item.checked)}
-                      onRemove={() => removeItem(item.name)}
+                      onToggle={() => toggleItem(item.id, item.checked)}
+                      onRemove={() => removeItem(item.id)}
                       onCategoryChange={newCat => changeCategoryOverride(item.name, newCat)}
                     />
                   ))}
@@ -705,11 +705,11 @@ export default function GroceryList({ user }) {
                 <div className="grocery-category-items">
                   {items.filter(i => i.checked).map((item, idx) => (
                     <GroceryItemRow
-                      key={idx}
+                      key={item.id || idx}
                       item={item}
                       editing={false}
-                      onToggle={() => toggleItem(item.name, item.checked)}
-                      onRemove={() => removeItem(item.name)}
+                      onToggle={() => toggleItem(item.id, item.checked)}
+                      onRemove={() => removeItem(item.id)}
                     />
                   ))}
                 </div>
@@ -782,7 +782,7 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
           <button className="grocery-edit-cancel" onClick={onEditCancel} aria-label="Cancel edit" title="Cancel">✕</button>
         </div>
       ) : (
-        <span className="grocery-item-name" onClick={onEditStart}>{item.name}</span>
+        <span className="grocery-item-name" onClick={onEditStart}>{item.name || '(no name)'}</span>
       )}
 
       {!editing && qtyLabel && (
