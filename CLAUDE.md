@@ -87,13 +87,14 @@ The committed `build/` directory is a checked-in production build of the fronten
 
 ## Working as the issue bot
 
-Rules from Collin for the automated worker that implements issues assigned to it. Keep these short and follow them.
+Rules from Collin for Claude when it runs from GitHub Actions (`.github/workflows/claude.yml`). Label an issue `claude` to build it (add `research` for a proposal only); comment `@claude ...` on a PR to ask for changes. Keep these short and follow them.
 
 **Process**
 - Keep changes small and on-topic. Don't refactor unrelated code or "improve" things not in the issue.
 - Never commit `.env`, `build/`, `node_modules/` or `package-lock.json` changes.
 - Check your work: `BUILD_PATH=.build-check CI=false DISABLE_ESLINT_PLUGIN=true npm run build` for frontend (BUILD_PATH stops it overwriting the tracked `build/` folder; never run a build without it), `python3 -m py_compile <file>` for backend files you touched. (Linting is off because the lock file is out of sync, see issue #6.)
-- The worker pushes and opens the PR. You only commit. Don't mention pushing in your summary.
+- Work on the branch `claude/issue-N`, push it (never force-push) and open the PR with `gh pr create --reviewer CollinWorth`. Merge `origin/main` into the branch before pushing.
+- Run `bash scripts/test.sh` before pushing and say whether it passed. Add a test for every fix.
 - If the issue is unclear or risky, make no commits and say why.
 - Never rewrite history. If asked to remove a commit, add a new commit that undoes it (`git revert --no-edit <sha>` works), with the message `Revert of <short sha>: <original subject>`.
 
@@ -104,7 +105,7 @@ Rules from Collin for the automated worker that implements issues assigned to it
 **Testing and deploys**
 - Merging to `main` deploys to production (Vercel frontend, Railway backend). Nothing should reach prod untested.
 - The Vercel preview builds only the **frontend**, and it talks to the **production backend**. Backend changes can't be previewed before merge. For backend changes, say so plainly in the PR and keep them minimal. If a frontend change depends on a backend change, say that too.
-- Only Collin approves. Never merge yourself; the worker merges after his approval.
+- Only Collin approves. Never merge yourself; the `merge-on-approval` workflow squash-merges after his approval of the latest commit.
 
 **Conventions**
 - Backend returns **401 only for a bad or expired token** (the frontend `apiFetch` logs the user out on 401). Use 400/403 for wrong passwords and permission failures.
