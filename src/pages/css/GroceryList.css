@@ -464,6 +464,8 @@
 .grocery-edit-group {
   display: flex;
   flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
   gap: 4px;
   align-items: center;
 }
@@ -479,9 +481,9 @@
   outline: none;
   box-shadow: 0 0 0 3px var(--accent-light);
 }
-.grocery-edit-qty  { width: 52px; min-width: 0; }
-.grocery-edit-unit { width: 68px; min-width: 0; }
-.grocery-edit-name { flex: 1; min-width: 0; }
+.grocery-edit-qty  { width: 56px; }
+.grocery-edit-unit { width: 72px; }
+.grocery-edit-name { flex: 1 1 120px; min-width: 100px; }
 .grocery-edit-save,
 .grocery-edit-cancel {
   font-size: var(--text-xs);

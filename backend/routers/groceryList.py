@@ -356,6 +356,42 @@ async def edit_grocery_item(grocery_list_id: str, item_id: str, body: GroceryIte
     return {"message": f"Updated '{updates.get('name', current['name'])}'", "item": {**current, **updates}}
 
 
+# Toggle checked state by item id (names can be empty or duplicated)
+@router.patch("/{grocery_list_id}/items/{item_id}/check")
+async def toggle_grocery_item_by_id(grocery_list_id: str, item_id: str):
+    obj_id = parse_object_id(grocery_list_id, "grocery list ID")
+    grocery_list = await grocery_collection.find_one({"_id": obj_id})
+    if not grocery_list:
+        raise HTTPException(status_code=404, detail="Grocery list not found")
+    grocery_list = await _ensure_item_ids(grocery_list)
+    current = next((i for i in grocery_list.get("items", []) if i.get("id") == item_id), None)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+    new_checked = not current.get("checked", False)
+    await grocery_collection.update_one(
+        {"_id": obj_id, "items.id": item_id},
+        {"$set": {"items.$.checked": new_checked}}
+    )
+    return {"checked": new_checked}
+
+
+# Delete one item by id
+@router.delete("/{grocery_list_id}/items/{item_id}")
+async def delete_grocery_item_by_id(grocery_list_id: str, item_id: str):
+    obj_id = parse_object_id(grocery_list_id, "grocery list ID")
+    grocery_list = await grocery_collection.find_one({"_id": obj_id})
+    if not grocery_list:
+        raise HTTPException(status_code=404, detail="Grocery list not found")
+    await _ensure_item_ids(grocery_list)
+    result = await grocery_collection.update_one(
+        {"_id": obj_id},
+        {"$pull": {"items": {"id": item_id}}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"message": "Item deleted"}
+
+
 # Clear all items (or just checked items) from a list in one query
 @router.delete("/{grocery_list_id}")
 async def clear_grocery_items(grocery_list_id: str, checked_only: bool = False):

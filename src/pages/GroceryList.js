@@ -171,7 +171,7 @@ export default function GroceryList({ user }) {
   const [pantryOpen, setPantryOpen]   = useState(false);
   const [newPantryItem, setNewPantryItem] = useState('');
   const [cartOpen, setCartOpen]       = useState(false);
-  const [editingItem, setEditingItem] = useState(null); // { itemId, name, quantity, unit }
+  const [editingItem, setEditingItem] = useState(null); // { orig, name, quantity, unit }
   const [catOverrides, setCatOverrides] = useState({});
   const inputRef = useRef(null);
 
@@ -256,23 +256,31 @@ export default function GroceryList({ user }) {
     addItem(name);
   };
 
-  const toggleItem = async (itemName, currentChecked) => {
-    setList(l => ({ ...l, items: l.items.map(i => i.name === itemName ? { ...i, checked: !currentChecked } : i) }));
+  // Items normally have an id. If the backend hasn't been updated yet they don't,
+  // so fall back to the older by-name routes instead of calling /items/undefined.
+  const itemPath = (item) => item.id
+    ? `/groceryList/${list._id}/items/${item.id}`
+    : `/groceryList/${list._id}/${encodeURIComponent(item.name)}`;
+  const isItem = (a, b) => a.id ? a.id === b.id : (!b.id && a.name === b.name);
+
+  const toggleItem = async (item) => {
+    const currentChecked = item.checked;
+    setList(l => ({ ...l, items: l.items.map(i => isItem(item, i) ? { ...i, checked: !currentChecked } : i) }));
     if (!currentChecked) setCartOpen(true);
     try {
-      const res = await apiFetch(`/groceryList/${list._id}/${encodeURIComponent(itemName)}/check`, { method: 'PATCH' });
+      const res = await apiFetch(`${itemPath(item)}/check`, { method: 'PATCH' });
       if (!res.ok) throw new Error('failed');
     } catch {
       // Roll back on any failure
-      setList(l => ({ ...l, items: l.items.map(i => i.name === itemName ? { ...i, checked: currentChecked } : i) }));
+      setList(l => ({ ...l, items: l.items.map(i => isItem(item, i) ? { ...i, checked: currentChecked } : i) }));
       toast.error('Could not update item.');
     }
   };
 
-  const removeItem = async (itemName) => {
-    setList(l => ({ ...l, items: l.items.filter(i => i.name !== itemName) }));
+  const removeItem = async (item) => {
+    setList(l => ({ ...l, items: l.items.filter(i => !isItem(item, i)) }));
     try {
-      const res = await apiFetch(`/groceryList/${list._id}/${encodeURIComponent(itemName)}`, { method: 'DELETE' });
+      const res = await apiFetch(itemPath(item), { method: 'DELETE' });
       if (!res.ok) throw new Error('failed');
     } catch {
       toast.error('Could not remove item.');
@@ -283,19 +291,28 @@ export default function GroceryList({ user }) {
 
   const saveEdit = async () => {
     if (!editingItem) return;
-    const { itemId, name, quantity, unit } = editingItem;
+    const { orig, name, quantity, unit } = editingItem;
     const patch = { name: name.trim(), quantity: quantity.trim(), unit: unit.trim() };
     if (!patch.name) { toast.error('Name cannot be empty.'); return; }
-    const current = (list.items || []).find(i => i.id === itemId);
+    const current = (list.items || []).find(i => isItem(orig, i));
     setEditingItem(null);
     if (!current || (current.name === patch.name && (current.quantity || '') === patch.quantity && (current.unit || '') === patch.unit)) return;
-    setList(l => ({ ...l, items: l.items.map(i => i.id === itemId ? { ...i, ...patch } : i) }));
+    setList(l => ({ ...l, items: l.items.map(i => isItem(orig, i) ? { ...i, ...patch } : i) }));
     try {
-      const res = await apiFetch(`/groceryList/${list._id}/items/${itemId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) throw new Error('failed');
+      if (current.id) {
+        const res = await apiFetch(itemPath(current), { method: 'PATCH', body: JSON.stringify(patch) });
+        if (!res.ok) throw new Error('failed');
+      } else {
+        // Backend without ids: replace the row (delete by name, then add it back)
+        const del = await apiFetch(itemPath(current), { method: 'DELETE' });
+        if (!del.ok) throw new Error('failed');
+        const put = await apiFetch(`/groceryList/${list._id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ ...current, ...patch }),
+        });
+        if (!put.ok) throw new Error('failed');
+        await reloadList();
+      }
     } catch {
       toast.error('Could not save changes.');
       await reloadList();
@@ -409,7 +426,7 @@ export default function GroceryList({ user }) {
     grouped[key].push({ ...item, _effectiveCat: key });
   }
   const sortedGroups = SECTIONS.map(s => s.key).filter(k => grouped[k]?.length > 0);
-  const addedNames   = new Set(items.map(i => i.name.toLowerCase()));
+  const addedNames   = new Set(items.map(i => (i.name || '').toLowerCase()));
 
   if (!user) return (
     <div className="grocery-splash">
@@ -674,16 +691,16 @@ export default function GroceryList({ user }) {
                 <div className="grocery-category-items">
                   {grouped[key].map((item, idx) => (
                     <GroceryItemRow
-                      key={idx}
+                      key={item.id || idx}
                       item={{ ...item, category: item._effectiveCat }}
-                      editing={editingItem?.itemId === item.id}
-                      editItem={editingItem?.itemId === item.id ? editingItem : null}
-                      onEditStart={() => setEditingItem({ itemId: item.id, name: item.name, quantity: item.quantity || '', unit: item.unit || '' })}
+                      editing={!!editingItem && isItem(editingItem.orig, item)}
+                      editItem={editingItem && isItem(editingItem.orig, item) ? editingItem : null}
+                      onEditStart={() => setEditingItem({ orig: item, name: item.name, quantity: item.quantity || '', unit: item.unit || '' })}
                       onEditChange={(field, val) => setEditingItem(e => ({ ...e, [field]: val }))}
                       onEditSave={saveEdit}
                       onEditCancel={() => setEditingItem(null)}
-                      onToggle={() => toggleItem(item.name, item.checked)}
-                      onRemove={() => removeItem(item.name)}
+                      onToggle={() => toggleItem(item)}
+                      onRemove={() => removeItem(item)}
                       onCategoryChange={newCat => changeCategoryOverride(item.name, newCat)}
                     />
                   ))}
@@ -705,11 +722,11 @@ export default function GroceryList({ user }) {
                 <div className="grocery-category-items">
                   {items.filter(i => i.checked).map((item, idx) => (
                     <GroceryItemRow
-                      key={idx}
+                      key={item.id || idx}
                       item={item}
                       editing={false}
-                      onToggle={() => toggleItem(item.name, item.checked)}
-                      onRemove={() => removeItem(item.name)}
+                      onToggle={() => toggleItem(item)}
+                      onRemove={() => removeItem(item)}
                     />
                   ))}
                 </div>
@@ -782,7 +799,7 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
           <button className="grocery-edit-cancel" onClick={onEditCancel} aria-label="Cancel edit" title="Cancel">✕</button>
         </div>
       ) : (
-        <span className="grocery-item-name" onClick={onEditStart}>{item.name}</span>
+        <span className="grocery-item-name" onClick={onEditStart}>{item.name || '(no name)'}</span>
       )}
 
       {!editing && qtyLabel && (
