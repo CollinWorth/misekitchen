@@ -72,8 +72,17 @@ function mergeIngredients(recipes) {
     for (const ing of (recipe.ingredients || [])) {
       if (!(ing.name || '').trim()) continue;
       let { qty: rawQty, unit: rawUnit } = parseQtyUnit(ing.quantity, ing.unit);
-      // Some recipes keep the unit at the start of the name ("cups flour") with the unit field empty
       let ingName = ing.name.trim();
+      // Some recipes put the whole line in the name ("2 cups flour") with quantity and unit empty
+      if (!rawUnit && !String(ing.quantity || '').trim()) {
+        const p = parseInput(ingName);
+        if (p.quantity) {
+          rawQty = parseFraction(p.quantity) || 0;
+          rawUnit = p.unit;
+          ingName = p.name || ingName;
+        }
+      }
+      // Others keep the unit at the start of the name ("cups flour") with the unit field empty
       if (!rawUnit) {
         const nameUnit = ingName.match(UNITS_RE);
         if (nameUnit && ingName.length > nameUnit[0].length) {
