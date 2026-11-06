@@ -3,7 +3,7 @@ import { apiFetch } from '../api';
 import { useToast } from '../contexts/ToastContext';
 import {
   pantryGet, pantrySave, pantryMatches, PREP_PREFIX_RE,
-  SECTIONS, SECTION_MAP, categorize, getCatOverrides, saveCatOverride, effectiveCategory,
+  SECTIONS, SECTION_MAP, getCatOverrides, saveCatOverride, effectiveCategory,
   ensureGroceryList,
 } from '../utils/grocery';
 import './css/GroceryList.css';
@@ -64,31 +64,35 @@ const UNIT_OPTIONS = ['cup', 'tbsp', 'tsp', 'oz', 'lb', 'g', 'kg', 'ml', 'l', 'c
 
 // ── Ingredient merging ────────────────────────────────────────────────────────
 function mergeIngredients(recipes) {
-  // result keyed by normalized name; stores display name + running qty
+  // One line per name + unit, so different units never overwrite each other.
+  // Every ingredient is kept as a source with its original quantity and unit.
   const result = {};
   for (const recipe of recipes) {
     const mult = recipe._count || 1;
     for (const ing of (recipe.ingredients || [])) {
       if (!(ing.name || '').trim()) continue;
-      const key  = normalizeIngKey(ing.name);
       const { qty: rawQty, unit: rawUnit } = parseQtyUnit(ing.quantity, ing.unit);
       const qty  = rawQty * mult;
       const unit = normalizeUnit(rawUnit);
+      const key  = `${normalizeIngKey(ing.name)}|${unit}`;
+      const source = {
+        recipe_id: recipe._id || null,
+        recipe_title: recipe.recipe_name || '',
+        quantity: String(ing.quantity || ''),
+        unit: ing.unit || '',
+        raw_line: [ing.quantity, ing.unit, ing.name].filter(Boolean).join(' '),
+      };
       if (result[key]) {
         const ex = result[key];
-        if (ex.unit === unit) {
-          const combined = parseFraction(ex.quantity) + qty;
-          if (combined > 0) ex.quantity = fmtQty(combined);
-        } else if (!ex.unit && unit) {
-          ex.unit = unit;
-          if (qty > 0) ex.quantity = fmtQty(parseFraction(ex.quantity) + qty);
-        }
+        if (qty > 0) ex.quantity = fmtQty(parseFraction(ex.quantity) + qty);
         if (ing.name.length > ex.name.length) ex.name = ing.name;
+        ex.sources.push(source);
       } else {
         result[key] = {
           name: ing.name,
           quantity: qty > 0 ? fmtQty(qty) : (ing.quantity || ''),
-          unit: unit || '',
+          unit,
+          sources: [source],
         };
       }
     }
@@ -107,7 +111,7 @@ function fmtQty(n) {
   return String(Math.round(n * 100) / 100);
 }
 
-const UNITS_RE = /^(cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|g|gram|grams|kg|ml|milliliter|liter|liters|l|clove|cloves|can|cans|bunch|pinch|dash|slice|slices|piece|pieces|sprig|sprigs|stalk|stalks|pkg|package)\b/i;
+const UNITS_RE = /^(cup|cups|tbsp|tbs|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounce|ounces|fl\s?oz|lb|lbs|pound|pounds|g|gram|grams|kg|kilogram|kilograms|ml|milliliter|milliliters|liter|liters|l|quart|quarts|qt|pint|pints|gallon|gallons|clove|cloves|can|cans|bunch|pinch|dash|slice|slices|piece|pieces|sprig|sprigs|stalk|stalks|stick|sticks|head|heads|bulb|bulbs|bag|bags|jar|jars|bottle|bottles|box|boxes|pkg|package|packages)\b/i;
 
 function parseInput(raw) {
   const s = raw.trim();
@@ -167,7 +171,7 @@ export default function GroceryList({ user }) {
   const [pantryOpen, setPantryOpen]   = useState(false);
   const [newPantryItem, setNewPantryItem] = useState('');
   const [cartOpen, setCartOpen]       = useState(false);
-  const [editingItem, setEditingItem] = useState(null); // { name, value }
+  const [editingItem, setEditingItem] = useState(null); // { itemId, name, quantity, unit }
   const [catOverrides, setCatOverrides] = useState({});
   const inputRef = useRef(null);
 
@@ -210,8 +214,13 @@ export default function GroceryList({ user }) {
     setLoading(false);
   };
 
+  const reloadList = async () => {
+    const r = await apiFetch(`/groceryList/listID/${list._id}`);
+    if (r.ok) setList(await r.json());
+  };
+
   const addItem = async (itemName, itemQty = '', itemUnit = '') => {
-    const parsed = parseInput(input);
+    const parsed = itemName ? { name: itemName, quantity: '', unit: '' } : parseInput(input);
     const name     = itemName  || parsed.name;
     const quantity = itemQty   || parsed.quantity;
     const unit     = itemUnit  || parsed.unit;
@@ -224,7 +233,13 @@ export default function GroceryList({ user }) {
         body: JSON.stringify({ name, quantity, unit, category: cat, checked: false }),
       });
       if (res.ok) {
-        setList(l => ({ ...l, items: [...(l.items || []), { name, quantity, unit, category: cat, checked: false }] }));
+        const data = await res.json();
+        if (data.item) {
+          setList(l => ({ ...l, items: [...(l.items || []), data.item] }));
+        } else {
+          // Merged into an existing row on the server, so show what it stored
+          await reloadList();
+        }
         if (!itemName) { setInput(''); inputRef.current?.focus(); }
       } else {
         toast.error('Could not add item.');
@@ -268,21 +283,22 @@ export default function GroceryList({ user }) {
 
   const saveEdit = async () => {
     if (!editingItem) return;
-    const { originalName, name, quantity, unit } = editingItem;
-    if (!name.trim()) { setEditingItem(null); return; }
-    const updated = { name: name.trim(), quantity: quantity || '', unit: unit || '', category: categorize(name.trim()) };
-    setList(l => ({ ...l, items: l.items.map(i => i.name === originalName ? { ...i, ...updated } : i) }));
+    const { itemId, name, quantity, unit } = editingItem;
+    const patch = { name: name.trim(), quantity: quantity.trim(), unit: unit.trim() };
+    if (!patch.name) { toast.error('Name cannot be empty.'); return; }
+    const current = (list.items || []).find(i => i.id === itemId);
     setEditingItem(null);
+    if (!current || (current.name === patch.name && (current.quantity || '') === patch.quantity && (current.unit || '') === patch.unit)) return;
+    setList(l => ({ ...l, items: l.items.map(i => i.id === itemId ? { ...i, ...patch } : i) }));
     try {
-      await apiFetch(`/groceryList/${list._id}/${encodeURIComponent(originalName)}`, { method: 'DELETE' });
-      const res = await apiFetch(`/groceryList/${list._id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ ...updated, checked: false }),
+      const res = await apiFetch(`/groceryList/${list._id}/items/${itemId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
       });
       if (!res.ok) throw new Error('failed');
-      toast.success(`Saved ${updated.name}`);
     } catch {
-      toast.error('Could not save item.');
+      toast.error('Could not save changes.');
+      await reloadList();
     }
   };
 
@@ -347,7 +363,7 @@ export default function GroceryList({ user }) {
       for (const ing of toAdd) {
         await apiFetch(`/groceryList/${list._id}`, {
           method: 'PUT',
-          body: JSON.stringify({ name: ing.name, quantity: ing.quantity, unit: ing.unit, category: effectiveCategory(ing.name, null, catOverrides), checked: false }),
+          body: JSON.stringify({ name: ing.name, quantity: ing.quantity, unit: ing.unit, category: effectiveCategory(ing.name, null, catOverrides), checked: false, sources: ing.sources }),
         });
       }
       toast.success(`Added ${toAdd.length} ingredient${toAdd.length !== 1 ? 's' : ''}`);
@@ -660,9 +676,9 @@ export default function GroceryList({ user }) {
                     <GroceryItemRow
                       key={idx}
                       item={{ ...item, category: item._effectiveCat }}
-                      editing={editingItem?.originalName === item.name}
-                      editItem={editingItem?.originalName === item.name ? editingItem : null}
-                      onEditStart={() => setEditingItem({ originalName: item.name, name: item.name, quantity: item.quantity || '', unit: item.unit || '' })}
+                      editing={editingItem?.itemId === item.id}
+                      editItem={editingItem?.itemId === item.id ? editingItem : null}
+                      onEditStart={() => setEditingItem({ itemId: item.id, name: item.name, quantity: item.quantity || '', unit: item.unit || '' })}
                       onEditChange={(field, val) => setEditingItem(e => ({ ...e, [field]: val }))}
                       onEditSave={saveEdit}
                       onEditCancel={() => setEditingItem(null)}
@@ -714,6 +730,11 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
 
   useEffect(() => { if (editing) editRef.current?.focus(); }, [editing]);
 
+  const handleEditKey = (e) => {
+    if (e.key === 'Enter') onEditSave();
+    if (e.key === 'Escape') onEditCancel();
+  };
+
   useEffect(() => {
     if (!showCatMenu) return;
     const handler = e => { if (catRef.current && !catRef.current.contains(e.target)) setShowCatMenu(false); };
@@ -737,7 +758,7 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
             value={editItem?.quantity || ''}
             onChange={e => onEditChange('quantity', e.target.value)}
             placeholder="Qty"
-            onKeyDown={e => { if (e.key === 'Enter') onEditSave(); if (e.key === 'Escape') onEditCancel(); }}
+            onKeyDown={handleEditKey}
           />
           <input
             className="grocery-edit-unit"
@@ -745,7 +766,7 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
             value={editItem?.unit || ''}
             onChange={e => onEditChange('unit', e.target.value)}
             placeholder="Unit"
-            onKeyDown={e => { if (e.key === 'Enter') onEditSave(); if (e.key === 'Escape') onEditCancel(); }}
+            onKeyDown={handleEditKey}
           />
           <datalist id="grocery-unit-options">
             {UNIT_OPTIONS.map(u => <option key={u} value={u} />)}
@@ -755,13 +776,13 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
             value={editItem?.name || ''}
             onChange={e => onEditChange('name', e.target.value)}
             placeholder="Name"
-            onKeyDown={e => { if (e.key === 'Enter') onEditSave(); if (e.key === 'Escape') onEditCancel(); }}
+            onKeyDown={handleEditKey}
           />
           <button className="grocery-edit-save" onClick={onEditSave} aria-label="Save item" title="Save">Save</button>
           <button className="grocery-edit-cancel" onClick={onEditCancel} aria-label="Cancel edit" title="Cancel">✕</button>
         </div>
       ) : (
-        <span className="grocery-item-name" onDoubleClick={onEditStart}>{item.name}</span>
+        <span className="grocery-item-name" onClick={onEditStart}>{item.name}</span>
       )}
 
       {!editing && qtyLabel && (
