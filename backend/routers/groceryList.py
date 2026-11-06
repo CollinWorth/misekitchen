@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from model import GroceryList, GroceryItem
 from pydantic import BaseModel
 from bson import ObjectId
-from database import grocery_collection, mealPlans_collection, recipes_collection
+from database import grocery_collection, mealPlans_collection, recipes_collection, parse_object_id
 from datetime import date, timedelta
 
 router = APIRouter()
@@ -196,14 +196,14 @@ async def generate_from_meal_plan(body: FromMealPlanRequest):
 
 # Create a new grocery list
 @router.post("/")
-def create_grocery_list(grocery: GroceryList):
-    grocery_dict = grocery.dict(by_alias=True)
-    grocery_dict["user_id"] = ObjectId(grocery_dict["user_id"])
-    result = grocery_collection.insert_one(grocery_dict)
-    if not result:
+async def create_grocery_list(grocery: GroceryList):
+    grocery_dict = grocery.model_dump(by_alias=True)
+    grocery_dict["user_id"] = parse_object_id(grocery_dict["user_id"], "user_id")
+    result = await grocery_collection.insert_one(grocery_dict)
+    if not result.inserted_id:
         raise HTTPException(status_code=500, detail="Failed to create grocery list")
-    else:
-        return {"message": "List created"}
+    created = await grocery_collection.find_one({"_id": result.inserted_id})
+    return convert_object_ids(created)
     
 
 @router.get("/userID/{user_id}")
