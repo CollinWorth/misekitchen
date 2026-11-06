@@ -73,7 +73,7 @@ export default function SettingsPage({ user, onLogout }) {
   const changePassword = async (e) => {
     e.preventDefault();
     if (newPw !== confirmPw) { toast.error('New passwords do not match'); return; }
-    if (newPw.length < 6)    { toast.error('Password must be at least 6 characters'); return; }
+    if (newPw.length < 8)    { toast.error('Password must be at least 8 characters'); return; }
     setPwSaving(true);
     try {
       const r = await apiFetch('/users/me/password', {
