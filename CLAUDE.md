@@ -81,7 +81,7 @@ Rules from Collin for the automated worker that implements issues assigned to it
 **Process**
 - Keep changes small and on-topic. Don't refactor unrelated code or "improve" things not in the issue.
 - Never commit `.env`, `build/`, `node_modules/` or `package-lock.json` changes.
-- Check your work: `CI=false DISABLE_ESLINT_PLUGIN=true npm run build` for frontend, `python3 -m py_compile <file>` for backend files you touched. (Linting is off because the lock file is out of sync, see issue #6.)
+- Check your work: `BUILD_PATH=.build-check CI=false DISABLE_ESLINT_PLUGIN=true npm run build` for frontend (BUILD_PATH stops it overwriting the tracked `build/` folder; never run a build without it), `python3 -m py_compile <file>` for backend files you touched. (Linting is off because the lock file is out of sync, see issue #6.)
 - The worker pushes and opens the PR. You only commit. Don't mention pushing in your summary.
 - If the issue is unclear or risky, make no commits and say why.
 - Never rewrite history. If asked to remove a commit, add a new commit that undoes it (`git revert --no-edit <sha>` works), with the message `Revert of <short sha>: <original subject>`.
