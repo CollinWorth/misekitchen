@@ -61,31 +61,35 @@ function normalizeUnit(u) {
 
 // ── Ingredient merging ────────────────────────────────────────────────────────
 function mergeIngredients(recipes) {
-  // result keyed by normalized name; stores display name + running qty
+  // One line per name + unit, so different units never overwrite each other.
+  // Every ingredient is kept as a source with its original quantity and unit.
   const result = {};
   for (const recipe of recipes) {
     const mult = recipe._count || 1;
     for (const ing of (recipe.ingredients || [])) {
       if (!(ing.name || '').trim()) continue;
-      const key  = normalizeIngKey(ing.name);
       const { qty: rawQty, unit: rawUnit } = parseQtyUnit(ing.quantity, ing.unit);
       const qty  = rawQty * mult;
       const unit = normalizeUnit(rawUnit);
+      const key  = `${normalizeIngKey(ing.name)}|${unit}`;
+      const source = {
+        recipe_id: recipe._id || null,
+        recipe_title: recipe.recipe_name || '',
+        quantity: String(ing.quantity || ''),
+        unit: ing.unit || '',
+        raw_line: [ing.quantity, ing.unit, ing.name].filter(Boolean).join(' '),
+      };
       if (result[key]) {
         const ex = result[key];
-        if (ex.unit === unit) {
-          const combined = parseFraction(ex.quantity) + qty;
-          if (combined > 0) ex.quantity = fmtQty(combined);
-        } else if (!ex.unit && unit) {
-          ex.unit = unit;
-          if (qty > 0) ex.quantity = fmtQty(parseFraction(ex.quantity) + qty);
-        }
+        if (qty > 0) ex.quantity = fmtQty(parseFraction(ex.quantity) + qty);
         if (ing.name.length > ex.name.length) ex.name = ing.name;
+        ex.sources.push(source);
       } else {
         result[key] = {
           name: ing.name,
           quantity: qty > 0 ? fmtQty(qty) : (ing.quantity || ''),
-          unit: unit || '',
+          unit,
+          sources: [source],
         };
       }
     }
@@ -106,7 +110,7 @@ function fmtQty(n) {
 
 const UNIT_OPTIONS = ['cup', 'tbsp', 'tsp', 'oz', 'lb', 'g', 'kg', 'ml', 'l', 'clove', 'can', 'pinch', 'slice', 'piece', 'pkg'];
 
-const UNITS_RE =/^(cup|cups|tbsp|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounce|ounces|lb|lbs|pound|pounds|g|gram|grams|kg|ml|milliliter|liter|liters|l|clove|cloves|can|cans|bunch|pinch|dash|slice|slices|piece|pieces|sprig|sprigs|stalk|stalks|pkg|package)\b/i;
+const UNITS_RE = /^(cup|cups|tbsp|tbs|tablespoon|tablespoons|tsp|teaspoon|teaspoons|oz|ounce|ounces|fl\s?oz|lb|lbs|pound|pounds|g|gram|grams|kg|kilogram|kilograms|ml|milliliter|milliliters|liter|liters|l|quart|quarts|qt|pint|pints|gallon|gallons|clove|cloves|can|cans|bunch|pinch|dash|slice|slices|piece|pieces|sprig|sprigs|stalk|stalks|stick|sticks|head|heads|bulb|bulbs|bag|bags|jar|jars|bottle|bottles|box|boxes|pkg|package|packages)\b/i;
 
 function parseInput(raw) {
   const s = raw.trim();
@@ -358,7 +362,7 @@ export default function GroceryList({ user }) {
       for (const ing of toAdd) {
         await apiFetch(`/groceryList/${list._id}`, {
           method: 'PUT',
-          body: JSON.stringify({ name: ing.name, quantity: ing.quantity, unit: ing.unit, category: effectiveCategory(ing.name, null, catOverrides), checked: false }),
+          body: JSON.stringify({ name: ing.name, quantity: ing.quantity, unit: ing.unit, category: effectiveCategory(ing.name, null, catOverrides), checked: false, sources: ing.sources }),
         });
       }
       toast.success(`Added ${toAdd.length} ingredient${toAdd.length !== 1 ? 's' : ''}`);

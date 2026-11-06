@@ -35,6 +35,11 @@ async def _ensure_item_ids(doc: dict) -> dict:
     return doc
 
 
+def _unit_key(unit: str | None) -> str:
+    """Units compare case- and whitespace-insensitively ("Cup " == "cup")."""
+    return (unit or "").strip().lower()
+
+
 def _fmt_qty(n: float) -> str:
     """Format a float quantity to a clean string (e.g. 2.0 → '2', 1.5 → '1.5')."""
     if n == int(n):
@@ -266,23 +271,33 @@ async def add_grocery_item(grocery_list_id: str, item: GroceryItem):
     if not grocery_list:
         raise HTTPException(status_code=404, detail="Grocery list not found")
 
-    existing_items = grocery_list.get("items", [])
-    for existing_item in existing_items:
-        if existing_item.get("name") == item.name:
-            # Combine quantities safely — both may be fractions or empty
-            try:
-                combined = float(existing_item.get("quantity") or 0) + float(item.quantity or 0)
-                new_qty = _fmt_qty(combined) if combined > 0 else (existing_item.get("quantity") or "")
-            except (ValueError, TypeError):
-                new_qty = existing_item.get("quantity") or item.quantity or ""
-            await grocery_collection.update_one(
-                {"_id": obj_id, "items.name": item.name},
-                {"$set": {"items.$.quantity": new_qty}}
-            )
-            return {"message": f"Updated '{item.name}'", "quantity": new_qty}
+    grocery_list = await _ensure_item_ids(grocery_list)
+    item_dict = item.dict(by_alias=True)
+
+    # Same name and same unit: add quantities and append sources.
+    # A different unit gets its own line so nothing is dropped.
+    existing_item = next(
+        (i for i in grocery_list.get("items", [])
+         if i.get("name") == item.name and _unit_key(i.get("unit")) == _unit_key(item.unit)),
+        None,
+    )
+    if existing_item:
+        # Combine quantities safely — both may be fractions or empty
+        try:
+            combined = float(existing_item.get("quantity") or 0) + float(item.quantity or 0)
+            new_qty = _fmt_qty(combined) if combined > 0 else (existing_item.get("quantity") or "")
+        except (ValueError, TypeError):
+            new_qty = existing_item.get("quantity") or item.quantity or ""
+        await grocery_collection.update_one(
+            {"_id": obj_id, "items.id": existing_item["id"]},
+            {
+                "$set": {"items.$.quantity": new_qty},
+                "$push": {"items.$.sources": {"$each": item_dict["sources"]}},
+            }
+        )
+        return {"message": f"Updated '{item.name}'", "quantity": new_qty}
 
     # New item — push to list
-    item_dict = item.dict(by_alias=True)
     await grocery_collection.update_one(
         {"_id": obj_id},
         {"$push": {"items": item_dict}}
