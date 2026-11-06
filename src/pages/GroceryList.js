@@ -59,6 +59,9 @@ function normalizeUnit(u) {
   return UNIT_ALIASES[lower] || lower;
 }
 
+// Suggested units for the edit field's datalist (free text is still allowed)
+const UNIT_OPTIONS = ['cup', 'tbsp', 'tsp', 'oz', 'lb', 'g', 'kg', 'ml', 'l', 'clove', 'can', 'bunch', 'pinch', 'dash', 'slice', 'piece', 'pkg', 'sprig', 'stalk'];
+
 // ── Ingredient merging ────────────────────────────────────────────────────────
 function mergeIngredients(recipes) {
   // result keyed by normalized name; stores display name + running qty
@@ -272,11 +275,15 @@ export default function GroceryList({ user }) {
     setEditingItem(null);
     try {
       await apiFetch(`/groceryList/${list._id}/${encodeURIComponent(originalName)}`, { method: 'DELETE' });
-      await apiFetch(`/groceryList/${list._id}`, {
+      const res = await apiFetch(`/groceryList/${list._id}`, {
         method: 'PUT',
         body: JSON.stringify({ ...updated, checked: false }),
       });
-    } catch {}
+      if (!res.ok) throw new Error('failed');
+      toast.success(`Saved ${updated.name}`);
+    } catch {
+      toast.error('Could not save item.');
+    }
   };
 
   const clearChecked = async () => {
@@ -702,17 +709,10 @@ export default function GroceryList({ user }) {
 function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, onEditSave, onEditCancel, onToggle, onRemove, onCategoryChange }) {
   const qtyLabel    = [item.quantity, item.unit].filter(Boolean).join(' ');
   const editRef     = useRef(null);
-  const editGroupRef = useRef(null);
   const catRef      = useRef(null);
   const [showCatMenu, setShowCatMenu] = useState(false);
 
   useEffect(() => { if (editing) editRef.current?.focus(); }, [editing]);
-
-  const handleEditBlur = (e) => {
-    if (editGroupRef.current && !editGroupRef.current.contains(e.relatedTarget)) {
-      onEditSave();
-    }
-  };
 
   useEffect(() => {
     if (!showCatMenu) return;
@@ -730,7 +730,7 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
       </button>
 
       {editing ? (
-        <div ref={editGroupRef} className="grocery-edit-group">
+        <div className="grocery-edit-group">
           <input
             ref={editRef}
             className="grocery-edit-qty"
@@ -738,24 +738,27 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
             onChange={e => onEditChange('quantity', e.target.value)}
             placeholder="Qty"
             onKeyDown={e => { if (e.key === 'Enter') onEditSave(); if (e.key === 'Escape') onEditCancel(); }}
-            onBlur={handleEditBlur}
           />
           <input
             className="grocery-edit-unit"
+            list="grocery-unit-options"
             value={editItem?.unit || ''}
             onChange={e => onEditChange('unit', e.target.value)}
             placeholder="Unit"
             onKeyDown={e => { if (e.key === 'Enter') onEditSave(); if (e.key === 'Escape') onEditCancel(); }}
-            onBlur={handleEditBlur}
           />
+          <datalist id="grocery-unit-options">
+            {UNIT_OPTIONS.map(u => <option key={u} value={u} />)}
+          </datalist>
           <input
             className="grocery-edit-name"
             value={editItem?.name || ''}
             onChange={e => onEditChange('name', e.target.value)}
             placeholder="Name"
             onKeyDown={e => { if (e.key === 'Enter') onEditSave(); if (e.key === 'Escape') onEditCancel(); }}
-            onBlur={handleEditBlur}
           />
+          <button className="grocery-edit-save" onClick={onEditSave} aria-label="Save item" title="Save">Save</button>
+          <button className="grocery-edit-cancel" onClick={onEditCancel} aria-label="Cancel edit" title="Cancel">✕</button>
         </div>
       ) : (
         <span className="grocery-item-name" onDoubleClick={onEditStart}>{item.name}</span>

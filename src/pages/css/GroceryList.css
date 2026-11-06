@@ -482,6 +482,20 @@
 .grocery-edit-qty  { width: 52px; min-width: 0; }
 .grocery-edit-unit { width: 68px; min-width: 0; }
 .grocery-edit-name { flex: 1; min-width: 0; }
+.grocery-edit-save,
+.grocery-edit-cancel {
+  font-size: var(--text-xs);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.grocery-edit-save { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.grocery-edit-save:hover { background: var(--accent-light); }
+.grocery-edit-cancel:hover { color: var(--error); }
 
 /* ── Remove ─────────────────────────────────────────── */
 .grocery-remove {
