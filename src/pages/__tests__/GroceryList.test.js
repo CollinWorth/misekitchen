@@ -51,7 +51,7 @@ beforeEach(() => {
   db = {
     _id: 'L1',
     items: [
-      { id: 'a', name: 'Flour', quantity: '2', unit: 'cup', category: 'pantry', checked: false, sources: [] },
+      { id: 'a', name: 'Flour', quantity: '2', unit: 'cup', category: 'dry_goods', checked: false, sources: [] },
       { id: 'b', name: 'Milk', quantity: '1', unit: '', category: 'dairy', checked: false, sources: [] },
       { id: 'c', name: '', quantity: '', unit: '', category: 'other', checked: false, sources: [] },
     ],

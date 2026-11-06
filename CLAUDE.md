@@ -18,7 +18,7 @@ The web frontend and Flutter app both talk to the same FastAPI backend over HTTP
 ```bash
 npm start            # dev server on :3000
 npm run build        # production build → build/
-npm test             # CRA/Jest watch mode (no test files currently exist)
+npm test             # CRA/Jest watch mode (component tests live in src/**/__tests__)
 ```
 The API base URL comes from `REACT_APP_API_URL` (defaults to `http://localhost:8000`); see [src/api.js](src/api.js).
 
@@ -29,7 +29,18 @@ source venv/bin/activate          # or .venv — a venv is expected
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
-Requires env vars (`.env` in `backend/`): `MONGODB_URI`, `DATABASE_NAME` (defaults to `cookindb`), `SECRET_KEY` (JWT signing), and `ANTHROPIC_API_KEY` (for AI parsing). NLTK data `averaged_perceptron_tagger_eng` must be downloaded for ingredient parsing (the Dockerfiles do this). No test suite exists yet despite `pytest` being a listed dependency.
+Requires env vars (`.env` in `backend/`): `MONGODB_URI`, `DATABASE_NAME` (defaults to `cookindb`), `SECRET_KEY` (JWT signing), and `ANTHROPIC_API_KEY` (for AI parsing). NLTK data `averaged_perceptron_tagger_eng` must be downloaded for ingredient parsing (the Dockerfiles do this). Backend tests need none of these: they use an in-memory fake MongoDB (see Testing below).
+
+### Testing (one command for everything)
+
+```
+bash scripts/test.sh            # backend (pytest) + frontend (Jest)
+bash scripts/test.sh backend    # or just one side
+```
+
+- Backend tests are in `backend/tests/`. `conftest.py` swaps MongoDB for `mongomock-motor`, so no database, network or secrets are needed. Fixtures: `client` (FastAPI TestClient) and `user` (a logged-in user: id plus auth headers). Dev dependencies: `backend/requirements-dev.txt`.
+- Frontend tests sit next to the component in a `__tests__` folder and mock `apiFetch`. Use the real category keys from `src/utils/grocery.js` in test data.
+- Every bug fix or feature gets a test. The issue worker runs the full suite before pushing and flags failures in the PR.
 
 ### Mobile (run from `mobile/`)
 ```bash
