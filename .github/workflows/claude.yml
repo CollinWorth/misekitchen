@@ -1,0 +1,186 @@
+name: Claude
+
+# Label an issue `claude` to have Claude build it (add `research` to get a proposal instead).
+# Comment `@claude ...` on a Claude PR to ask for changes. Only CollinWorth's text is used.
+#   Model: haiku by default; add label `model:sonnet` or `model:opus` for a stronger one.
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
+
+env:
+  OWNER: CollinWorth
+
+jobs:
+  # ---- Build an issue: label `claude` ----
+  build:
+    if: >-
+      github.event_name == 'issues' && github.event.label.name == 'claude' &&
+      github.event.issue.user.login == 'CollinWorth' && github.event.sender.login == 'CollinWorth' &&
+      !contains(github.event.issue.labels.*.name, 'research')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    env:
+      MODEL: ${{ contains(github.event.issue.labels.*.name, 'model:opus') && 'claude-opus-5-5' || contains(github.event.issue.labels.*.name, 'model:sonnet') && 'claude-sonnet-5-5' || 'claude-haiku-4-5-20251001' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install dependencies for testing
+        run: |
+          npm install --no-audit --no-fund
+          pip install -r backend/requirements-dev.txt
+          python -c "import nltk; nltk.download('averaged_perceptron_tagger_eng')" || true
+      - name: Thumbs-up so you know it started
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/reactions" -f content='+1' || true
+      - name: Collect owner-only context
+        id: ctx
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N: ${{ github.event.issue.number }}
+        run: |
+          {
+            echo 'text<<CTX_EOF_7f3a91'
+            gh issue view "$N" --json title,body,comments | jq -r --arg n "$N" \
+              '"# Issue #" + $n + ": " + .title + "\n\n" + .body + "\n\n" + ([.comments[] | select(.author.login=="CollinWorth") | "Comment from CollinWorth:\n" + .body] | join("\n\n"))'
+            gh api "repos/${{ github.repository }}/issues/$N/parent" 2>/dev/null | jq -r \
+              'select(.user.login=="CollinWorth") | "\n\nBackground only: this is part of the larger issue #\(.number) (\(.title)). Do only the task above, not the whole parent.\n\(.body)"' || true
+            echo 'CTX_EOF_7f3a91'
+          } >> "$GITHUB_OUTPUT"
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          include_comments_by_actor: CollinWorth
+          prompt: |
+            You are implementing a GitHub issue for the mise app, then opening a pull request.
+            Follow CLAUDE.md ("Working as the issue bot"). Text below is the only task description.
+
+            ${{ steps.ctx.outputs.text }}
+
+            Steps:
+            1. `git switch -c claude/issue-${{ github.event.issue.number }}` (from the current main).
+            2. Make a focused change. Add or update a test (see CLAUDE.md Testing).
+            3. Run `bash scripts/test.sh`. Fix failures. For frontend changes also run
+               `BUILD_PATH=.build-check CI=false DISABLE_ESLINT_PLUGIN=true npm run build`.
+            4. Commit with clear messages. Never commit secrets, .env, build/ output, node_modules or package-lock.json.
+            5. `git fetch origin main && git merge origin/main --no-edit`; resolve any conflicts and re-run the tests.
+            6. `git push -u origin claude/issue-${{ github.event.issue.number }}` (never force-push).
+            7. `gh pr create --base main --reviewer CollinWorth --title "<issue title>"` with a body that starts with
+               `Closes #${{ github.event.issue.number }}`, then at most 5 short lines: what changed, how to check it on the
+               Vercel preview, whether tests passed, and any real doubt. No headings, no file lists.
+            If the issue is unclear or unsafe, make no commits and comment on the issue with one question.
+          claude_args: >-
+            --model ${{ env.MODEL }} --max-turns 40
+            --allowedTools "Edit,Write,Read,Glob,Grep,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git rm:*),Bash(git mv:*),Bash(git revert:*),Bash(git restore:*),Bash(git switch -c:*),Bash(git fetch:*),Bash(git merge:*),Bash(git push:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh issue comment:*),Bash(bash scripts/test.sh:*),Bash(BUILD_PATH=.build-check CI=false DISABLE_ESLINT_PLUGIN=true npm run build:*),Bash(node --check:*),Bash(python3 -m py_compile:*),Bash(python3 -m pytest:*),Bash(ls:*),Bash(wc:*)"
+
+  # ---- Research: labels `claude` + `research` ----
+  research:
+    if: >-
+      github.event_name == 'issues' && github.event.label.name == 'claude' &&
+      github.event.issue.user.login == 'CollinWorth' && github.event.sender.login == 'CollinWorth' &&
+      contains(github.event.issue.labels.*.name, 'research')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    env:
+      MODEL: ${{ contains(github.event.issue.labels.*.name, 'model:opus') && 'claude-opus-5-5' || 'claude-sonnet-5-5' }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Thumbs-up so you know it started
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/reactions" -f content='+1' || true
+      - name: Collect owner-only context
+        id: ctx
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N: ${{ github.event.issue.number }}
+        run: |
+          {
+            echo 'text<<CTX_EOF_7f3a91'
+            gh issue view "$N" --json title,body,comments | jq -r --arg n "$N" \
+              '"# Issue #" + $n + ": " + .title + "\n\n" + .body + "\n\n" + ([.comments[] | select(.author.login=="CollinWorth") | "Comment from CollinWorth:\n" + .body] | join("\n\n"))'
+            echo 'CTX_EOF_7f3a91'
+          } >> "$GITHUB_OUTPUT"
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          include_comments_by_actor: CollinWorth
+          prompt: |
+            Research this GitHub issue for the mise app. Do NOT change any files.
+            ${{ steps.ctx.outputs.text }}
+
+            Read the relevant code, then write a short proposal (at most 15 lines) with: Understanding (1-2 sentences),
+            Findings (file names and functions), Proposed approach (concrete steps, plus a smaller option if there is one),
+            Risks / open questions (only real ones), Suggested model (haiku, sonnet or opus, one sentence why).
+            If the work is several independent changes, list each as a separate line and say so.
+            Then add the proposal to the END of the issue body, under a `## Proposal` heading, keeping the original text
+            (read it with `gh issue view ${{ github.event.issue.number }} --json body`, then
+            `gh issue edit ${{ github.event.issue.number }} --body-file <file>`). Also add the label `model:<suggested>`
+            if you suggest sonnet or opus, and remove the `claude` and `research` labels so the issue is handed back.
+            Finish with one short comment on the issue saying the proposal is in the description.
+          claude_args: >-
+            --model ${{ env.MODEL }} --max-turns 25
+            --allowedTools "Read,Glob,Grep,Write,Bash(git log:*),Bash(git show:*),Bash(ls:*),Bash(wc:*),Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*)"
+
+  # ---- Changes on a Claude PR: comment `@claude ...` ----
+  followup:
+    if: >-
+      github.event.sender.login == 'CollinWorth' &&
+      (
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude') ) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    env:
+      MODEL: ${{ contains(github.event.issue.labels.*.name, 'model:opus') && 'claude-opus-5-5' || contains(github.event.issue.labels.*.name, 'model:sonnet') && 'claude-sonnet-5-5' || 'claude-haiku-4-5-20251001' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: |
+          npm install --no-audit --no-fund
+          pip install -r backend/requirements-dev.txt
+          python -c "import nltk; nltk.download('averaged_perceptron_tagger_eng')" || true
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          include_comments_by_actor: CollinWorth
+          claude_args: >-
+            --model ${{ env.MODEL }} --max-turns 30
+            --append-system-prompt "Follow CLAUDE.md ('Working as the issue bot'). Read the whole PR conversation first; do exactly what the newest message asks. Run bash scripts/test.sh before pushing. Merge origin/main into the branch before pushing (never force-push). To undo a commit use git revert --no-edit and the message 'Revert of <short sha>: <original subject>'. Reply with a SHORT summary (at most 5 lines)."
+            --allowedTools "Edit,Write,Read,Glob,Grep,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git rm:*),Bash(git mv:*),Bash(git revert:*),Bash(git restore:*),Bash(git fetch:*),Bash(git merge:*),Bash(git push:*),Bash(bash scripts/test.sh:*),Bash(BUILD_PATH=.build-check CI=false DISABLE_ESLINT_PLUGIN=true npm run build:*),Bash(node --check:*),Bash(python3 -m py_compile:*),Bash(python3 -m pytest:*),Bash(ls:*),Bash(wc:*)"
