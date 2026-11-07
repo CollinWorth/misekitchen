@@ -390,6 +390,7 @@
 .grocery-item {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-2);
   border-bottom: 1px solid var(--border);
@@ -594,3 +595,34 @@
   .grocery-item:hover .grocery-cat-btn { opacity: 0.45; }
   .grocery-item:hover .grocery-remove { color: var(--text-tertiary); }
 }
+
+/* Sources (where a merged item came from) */
+.grocery-sources-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 99px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.grocery-sources-btn:hover,
+.grocery-sources-btn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+
+.grocery-sources-list {
+  flex-basis: 100%;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 calc(var(--space-3) + 28px);
+  font-size: var(--text-sm);
+  color: var(--text-secondary, var(--text-tertiary));
+}
+.grocery-sources-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 4px 0;
+}
+.grocery-sources-amt { white-space: nowrap; color: var(--text-tertiary); }
