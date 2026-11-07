@@ -744,6 +744,8 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
   const editRef     = useRef(null);
   const catRef      = useRef(null);
   const [showCatMenu, setShowCatMenu] = useState(false);
+  const [showSources, setShowSources] = useState(false);
+  const sources = Array.isArray(item.sources) ? item.sources : [];
 
   useEffect(() => { if (editing) editRef.current?.focus(); }, [editing]);
 
@@ -806,6 +808,17 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
         <span className="grocery-item-qty" onClick={onEditStart}>{qtyLabel}</span>
       )}
 
+      {!editing && sources.length > 0 && (
+        <button
+          className="grocery-sources-btn"
+          onClick={() => setShowSources(v => !v)}
+          aria-expanded={showSources}
+          aria-label="Show where this item came from"
+        >
+          ⓘ {sources.length}
+        </button>
+      )}
+
       {!editing && onCategoryChange && (
         <div className="grocery-cat-wrap" ref={catRef}>
           <button
@@ -834,6 +847,20 @@ function GroceryItemRow({ item, editing, editItem, onEditStart, onEditChange, on
 
       {!editing && (
         <button className="grocery-remove" onClick={onRemove} aria-label="Remove">✕</button>
+      )}
+
+      {!editing && showSources && sources.length > 0 && (
+        <ul className="grocery-sources-list">
+          {sources.map((src, i) => {
+            const amt = [src.quantity, src.unit].filter(Boolean).join(' ') || src.raw_line || '';
+            return (
+              <li key={i}>
+                <span className="grocery-sources-title">{src.recipe_title || 'Added manually'}</span>
+                {amt && <span className="grocery-sources-amt">{amt}</span>}
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
